@@ -39,6 +39,8 @@ import androidx.glance.unit.ColorProvider
 import com.simple.bulletjournal.MainActivity
 import com.simple.bulletjournal.data.AppDatabase
 import com.simple.bulletjournal.data.Task
+import com.simple.bulletjournal.data.TaskRepository
+import com.simple.bulletjournal.data.TaskRepositoryImpl
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -55,7 +57,8 @@ class BulletJournalWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        val tasks = AppDatabase.getInstance(context).taskDao().getTasksByDateOnce(today)
+        val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
+        val tasks = repository.getTasksByDateOnce(today)
         val displayDate = LocalDate.now().format(
             DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
         )
@@ -188,9 +191,9 @@ class ToggleTaskAction : ActionCallback {
         parameters: ActionParameters
     ) {
         val taskId = parameters[TASK_ID_KEY] ?: return
-        val dao = AppDatabase.getInstance(context).taskDao()
-        val task = dao.getTaskById(taskId) ?: return
-        dao.updateTask(task.copy(isCompleted = !task.isCompleted))
+        val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
+        val task = repository.getTaskById(taskId) ?: return
+        repository.updateTask(task.copy(isCompleted = !task.isCompleted))
         BulletJournalWidget().update(context, glanceId)
     }
 

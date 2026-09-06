@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.simple.bulletjournal.data.AppDatabase
 import com.simple.bulletjournal.data.Task
+import com.simple.bulletjournal.data.TaskRepository
+import com.simple.bulletjournal.data.TaskRepositoryImpl
 import com.simple.bulletjournal.widget.BulletJournalWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -18,9 +20,13 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-class TaskViewModel(application: Application) : AndroidViewModel(application) {
+class TaskViewModel(
+    application: Application,
+    private val repository: TaskRepository = TaskRepositoryImpl(
+        AppDatabase.getInstance(application).taskDao()
+    )
+) : AndroidViewModel(application) {
 
-    private val dao = AppDatabase.getInstance(application).taskDao()
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     private val _selectedDate = MutableStateFlow(LocalDate.now())
@@ -28,7 +34,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val tasks: StateFlow<List<Task>> = _selectedDate
-        .flatMapLatest { date -> dao.getTasksByDate(date.format(formatter)) }
+        .flatMapLatest { date -> repository.getTasksByDate(date.format(formatter)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectDate(date: LocalDate) {
@@ -50,7 +56,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     fun addTask(content: String) {
         if (content.isBlank()) return
         viewModelScope.launch {
-            dao.insertTask(
+            repository.insertTask(
                 Task(
                     date = _selectedDate.value.format(formatter),
                     content = content.trim()
@@ -62,14 +68,14 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleTask(task: Task) {
         viewModelScope.launch {
-            dao.updateTask(task.copy(isCompleted = !task.isCompleted))
+            repository.updateTask(task.copy(isCompleted = !task.isCompleted))
             updateWidget()
         }
     }
 
     fun deleteTask(task: Task) {
         viewModelScope.launch {
-            dao.deleteTask(task)
+            repository.deleteTask(task)
             updateWidget()
         }
     }
