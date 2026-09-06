@@ -52,24 +52,29 @@ private val MarginLineColor = ColorProvider(Color(0xFFE0AAAA))
 private val NoteTextColor = ColorProvider(Color(0xFF333333))
 private val CompletedRedColor = ColorProvider(Color(0xFFE53935))
 private val SubtleTextColor = ColorProvider(Color(0xFF888888))
+private val BannerBgColor = ColorProvider(Color(0xFFFFF9E6))
+private val BannerTextColor = ColorProvider(Color(0xFF8D6E63))
+private val ActionTextColor = ColorProvider(Color(0xFFD32F2F))
 
 class BulletJournalWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
         val tasks = repository.getTasksByDateOnce(today)
+        val uncompletedYesterdayCount = repository.getTasksByDateOnce(yesterday).count { !it.isCompleted }
         val displayDate = LocalDate.now().format(
             DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
         )
 
         provideContent {
-            WidgetContent(displayDate, tasks)
+            WidgetContent(displayDate, tasks, uncompletedYesterdayCount)
         }
     }
 
     @Composable
-    private fun WidgetContent(displayDate: String, tasks: List<Task>) {
+    private fun WidgetContent(displayDate: String, tasks: List<Task>, uncompletedYesterdayCount: Int) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -102,6 +107,44 @@ class BulletJournalWidget : GlanceAppWidget() {
                     .background(RuledLineColor)
             )
 
+            // ── Yesterday Migration Banner (if any) ──
+            if (uncompletedYesterdayCount > 0) {
+                Row(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .background(BannerBgColor)
+                        .cornerRadius(6.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.Vertical.CenterVertically
+                ) {
+                    Text(
+                        text = "❭ 어제 미완료 ${uncompletedYesterdayCount}개",
+                        modifier = GlanceModifier.defaultWeight(),
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            color = BannerTextColor
+                        )
+                    )
+                    Text(
+                        text = "이월 ➔",
+                        modifier = GlanceModifier.clickable(actionRunCallback<MigrateTasksAction>()),
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ActionTextColor
+                        )
+                    )
+                }
+
+                Spacer(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(RuledLineColor)
+                )
+            }
+
             // ── Notebook body ──
             if (tasks.isEmpty()) {
                 Box(
@@ -132,6 +175,8 @@ class BulletJournalWidget : GlanceAppWidget() {
 
     @Composable
     private fun WidgetNotebookLine(task: Task) {
+        val taskText = if (task.isPriority) "★ ${task.content}" else task.content
+
         Column(modifier = GlanceModifier.fillMaxWidth()) {
             Row(
                 modifier = GlanceModifier
@@ -156,9 +201,10 @@ class BulletJournalWidget : GlanceAppWidget() {
                         actionParametersOf(ToggleTaskAction.TASK_ID_KEY to task.id)
                     ),
                     modifier = GlanceModifier.defaultWeight(),
-                    text = task.content,
+                    text = taskText,
                     style = TextStyle(
                         fontSize = 13.sp,
+                        fontWeight = if (task.isPriority) FontWeight.Bold else FontWeight.Normal,
                         textDecoration = if (task.isCompleted) {
                             TextDecoration.LineThrough
                         } else {
@@ -199,5 +245,28 @@ class ToggleTaskAction : ActionCallback {
 
     companion object {
         val TASK_ID_KEY = ActionParameters.Key<Long>("task_id")
+    }
+}
+
+class MigrateTasksAction : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters
+    ) {
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
+        val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted }
+        uncompleted.forEach { task ->
+            repository.insertTask(
+                Task(
+                    date = today,
+                    content = task.content,
+                    isPriority = task.isPriority
+                )
+            )
+        }
+        BulletJournalWidget().update(context, glanceId)
     }
 }

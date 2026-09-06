@@ -191,9 +191,9 @@ class TaskViewModelTest {
         val today = LocalDate.now()
         val yesterday = today.minusDays(1)
 
-        // 어제 할 일 2개 추가: 1개는 미완료, 1개는 완료
+        // 어제 할 일 2개 추가: 1개는 미완료(중요), 1개는 완료
         fakeRepository.insertTask(
-            Task(id = 1, date = yesterday.format(formatter), content = "어제 미완료 할 일", isCompleted = false)
+            Task(id = 1, date = yesterday.format(formatter), content = "어제 미완료 할 일", isCompleted = false, isPriority = true)
         )
         fakeRepository.insertTask(
             Task(id = 2, date = yesterday.format(formatter), content = "어제 완료된 일", isCompleted = true)
@@ -212,6 +212,7 @@ class TaskViewModelTest {
             assertEquals("어제 미완료 할 일", todayTasks[0].content)
             assertEquals(today.format(formatter), todayTasks[0].date)
             assertFalse(todayTasks[0].isCompleted)
+            assertTrue(todayTasks[0].isPriority)
         }
     }
 

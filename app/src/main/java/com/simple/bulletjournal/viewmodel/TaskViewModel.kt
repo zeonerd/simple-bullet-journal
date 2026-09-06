@@ -105,7 +105,8 @@ class TaskViewModel @Inject constructor(
                 repository.insertTask(
                     Task(
                         date = currentDate,
-                        content = task.content
+                        content = task.content,
+                        isPriority = task.isPriority
                     )
                 )
             }
