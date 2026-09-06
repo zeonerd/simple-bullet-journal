@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">불렛 저널</string>
+    <string name="widget_description">오늘의 할 일을 바탕화면에서 확인하세요</string>
+</resources>
