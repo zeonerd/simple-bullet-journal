@@ -3,12 +3,11 @@ package com.simple.bulletjournal.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.simple.bulletjournal.data.AppDatabase
 import com.simple.bulletjournal.data.Task
 import com.simple.bulletjournal.data.TaskRepository
-import com.simple.bulletjournal.data.TaskRepositoryImpl
 import com.simple.bulletjournal.widget.BulletJournalWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,13 +19,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
-class TaskViewModel(
+@HiltViewModel
+class TaskViewModel @Inject constructor(
     application: Application,
-    private val repository: TaskRepository = TaskRepositoryImpl(
-        AppDatabase.getInstance(application).taskDao()
-    ),
-    private val widgetUpdater: suspend () -> Unit = {
+    private val repository: TaskRepository
+) : AndroidViewModel(application) {
+
+    var widgetUpdater: suspend () -> Unit = {
         try {
             val manager = GlanceAppWidgetManager(application)
             val glanceIds = manager.getGlanceIds(BulletJournalWidget::class.java)
@@ -37,7 +38,6 @@ class TaskViewModel(
             // Widget might not be placed yet
         }
     }
-) : AndroidViewModel(application) {
 
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 

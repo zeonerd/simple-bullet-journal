@@ -30,9 +30,10 @@ class TaskViewModelTest {
         fakeRepository = FakeTaskRepository()
         viewModel = TaskViewModel(
             application = Application(),
-            repository = fakeRepository,
+            repository = fakeRepository
+        ).apply {
             widgetUpdater = {}
-        )
+        }
     }
 
     @Test
