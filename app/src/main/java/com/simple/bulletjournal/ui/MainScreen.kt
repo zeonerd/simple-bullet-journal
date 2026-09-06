@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -54,6 +56,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,6 +120,7 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
             NotebookPage(
                 tasks = tasks,
                 onToggle = viewModel::toggleTask,
+                onTogglePriority = viewModel::togglePriority,
                 onEdit = viewModel::editTask,
                 onDelete = viewModel::deleteTask,
                 modifier = Modifier.weight(1f)
@@ -191,6 +195,7 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
 private fun NotebookPage(
     tasks: List<Task>,
     onToggle: (Task) -> Unit,
+    onTogglePriority: (Task) -> Unit,
     onEdit: (Task, String) -> Unit,
     onDelete: (Task) -> Unit,
     modifier: Modifier = Modifier
@@ -210,6 +215,7 @@ private fun NotebookPage(
                     TaskOnLine(
                         task = task,
                         onToggle = { onToggle(task) },
+                        onTogglePriority = { onTogglePriority(task) },
                         onEdit = { newContent -> onEdit(task, newContent) },
                         onDelete = { onDelete(task) }
                     )
@@ -263,6 +269,7 @@ private fun NotebookLine(
 private fun TaskOnLine(
     task: Task,
     onToggle: () -> Unit,
+    onTogglePriority: () -> Unit,
     onEdit: (String) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -296,9 +303,22 @@ private fun TaskOnLine(
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyLarge.copy(
                 textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                fontWeight = if (task.isPriority) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (task.isCompleted) colors.completed else colors.text
             )
         )
+
+        IconButton(
+            onClick = onTogglePriority,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = if (task.isPriority) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                contentDescription = if (task.isPriority) "중요 해제" else "중요 표시",
+                modifier = Modifier.size(18.dp),
+                tint = if (task.isPriority) colors.priority else colors.subtleText.copy(alpha = 0.4f)
+            )
+        }
 
         IconButton(
             onClick = { showDeleteDialog = true },

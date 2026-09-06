@@ -13,12 +13,20 @@ class FakeTaskRepository : TaskRepository {
 
     override fun getTasksByDate(date: String): Flow<List<Task>> {
         return tasksFlow.map { list ->
-            list.filter { it.date == date }.sortedBy { it.createdAt }
+            list.filter { it.date == date }.sortedWith(
+                compareByDescending<Task> { it.isPriority }
+                    .thenBy { it.orderIndex }
+                    .thenBy { it.createdAt }
+            )
         }
     }
 
     override suspend fun getTasksByDateOnce(date: String): List<Task> {
-        return tasksFlow.value.filter { it.date == date }.sortedBy { it.createdAt }
+        return tasksFlow.value.filter { it.date == date }.sortedWith(
+            compareByDescending<Task> { it.isPriority }
+                .thenBy { it.orderIndex }
+                .thenBy { it.createdAt }
+        )
     }
 
     override suspend fun getTaskById(id: Long): Task? {

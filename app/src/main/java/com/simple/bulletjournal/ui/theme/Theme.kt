@@ -21,6 +21,7 @@ data class NotebookColors(
     val inputContainer: Color,
     val bannerBackground: Color,
     val bannerText: Color,
+    val priority: Color,
     val isDark: Boolean
 )
 
@@ -34,6 +35,7 @@ val LightNotebookColors = NotebookColors(
     inputContainer = LightInputContainer,
     bannerBackground = LightBannerBackground,
     bannerText = LightBannerText,
+    priority = LightPriority,
     isDark = false
 )
 
@@ -47,6 +49,7 @@ val DarkNotebookColors = NotebookColors(
     inputContainer = DarkInputContainer,
     bannerBackground = DarkBannerBackground,
     bannerText = DarkBannerText,
+    priority = DarkPriority,
     isDark = true
 )
 

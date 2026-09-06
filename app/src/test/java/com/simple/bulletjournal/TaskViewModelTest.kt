@@ -214,4 +214,49 @@ class TaskViewModelTest {
             assertFalse(todayTasks[0].isCompleted)
         }
     }
+
+    @Test
+    fun togglePriority_togglesPriorityStatus() = runTest {
+        viewModel.tasks.test {
+            assertEquals(emptyList<Task>(), awaitItem())
+
+            viewModel.addTask("우선순위 테스트")
+            val listAfterAdd = awaitItem()
+            val task = listAfterAdd[0]
+            assertFalse(task.isPriority)
+
+            viewModel.togglePriority(task)
+            val listAfterToggle = awaitItem()
+            assertTrue(listAfterToggle[0].isPriority)
+
+            viewModel.togglePriority(listAfterToggle[0])
+            val listAfterSecondToggle = awaitItem()
+            assertFalse(listAfterSecondToggle[0].isPriority)
+        }
+    }
+
+    @Test
+    fun priorityOrdering_priorityTasksAppearFirst() = runTest {
+        viewModel.tasks.test {
+            assertEquals(emptyList<Task>(), awaitItem())
+
+            viewModel.addTask("일반 작업 1")
+            awaitItem()
+
+            viewModel.addTask("일반 작업 2")
+            val listTwo = awaitItem()
+
+            // 두 번째 작업을 중요(priority)로 변경
+            val secondTask = listTwo[1]
+            viewModel.togglePriority(secondTask)
+
+            val orderedList = awaitItem()
+            assertEquals(2, orderedList.size)
+            // 중요 작업이 목록의 맨 앞으로 정렬되어야 함
+            assertEquals("일반 작업 2", orderedList[0].content)
+            assertTrue(orderedList[0].isPriority)
+            assertEquals("일반 작업 1", orderedList[1].content)
+            assertFalse(orderedList[1].isPriority)
+        }
+    }
 }

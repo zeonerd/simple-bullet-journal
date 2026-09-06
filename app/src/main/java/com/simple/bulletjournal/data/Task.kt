@@ -14,5 +14,7 @@ data class Task(
     val date: String,
     val content: String,
     val isCompleted: Boolean = false,
+    val isPriority: Boolean = false,
+    val orderIndex: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 )

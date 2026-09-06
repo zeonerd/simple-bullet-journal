@@ -20,6 +20,7 @@ val LightCompleted = Color(0xFFE53935)
 val LightInputContainer = Color(0xFFFFFFFF)
 val LightBannerBackground = Color(0xFFFFF9E6)
 val LightBannerText = Color(0xFF8D6E63)
+val LightPriority = Color(0xFFF57F17)
 
 // ── Dark Chalkboard / Notebook Colors ──
 val DarkPaper = Color(0xFF1A1D20)
@@ -31,3 +32,4 @@ val DarkCompleted = Color(0xFFFF6B6B)
 val DarkInputContainer = Color(0xFF262B33)
 val DarkBannerBackground = Color(0xFF2D281E)
 val DarkBannerText = Color(0xFFFFD54F)
+val DarkPriority = Color(0xFFFFD54F)

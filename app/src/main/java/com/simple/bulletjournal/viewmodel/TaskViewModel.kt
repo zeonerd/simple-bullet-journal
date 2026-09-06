@@ -120,6 +120,13 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    fun togglePriority(task: Task) {
+        viewModelScope.launch {
+            repository.updateTask(task.copy(isPriority = !task.isPriority))
+            updateWidget()
+        }
+    }
+
     fun deleteTask(task: Task) {
         viewModelScope.launch {
             repository.deleteTask(task)
