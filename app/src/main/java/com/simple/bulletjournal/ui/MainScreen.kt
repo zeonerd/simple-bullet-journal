@@ -60,7 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.simple.bulletjournal.data.Task
-import com.simple.bulletjournal.ui.theme.CompletedRed
+import com.simple.bulletjournal.ui.theme.LocalNotebookColors
 import com.simple.bulletjournal.viewmodel.TaskViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -69,10 +69,6 @@ import java.util.Locale
 // ── Notebook style constants ──────────────────────────────
 private val LineHeight = 48.dp
 private val MarginX = 36.dp
-private val RuledLineColor = Color(0xFFB8D4E3)
-private val MarginLineColor = Color(0xFFE0AAAA)
-private val PaperColor = Color(0xFFFFFEF0)
-private val NoteTextColor = Color(0xFF333333)
 
 // ══════════════════════════════════════════════════════════
 //  Main Screen
@@ -81,6 +77,7 @@ private val NoteTextColor = Color(0xFF333333)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: TaskViewModel = viewModel()) {
+    val colors = LocalNotebookColors.current
     val selectedDate by viewModel.selectedDate.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val yesterdayUncompletedTasks by viewModel.yesterdayUncompletedTasks.collectAsState()
@@ -91,7 +88,7 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
     val isToday = selectedDate == LocalDate.now()
 
     Scaffold(
-        containerColor = PaperColor
+        containerColor = colors.paper
     ) { padding ->
         Column(
             modifier = Modifier
@@ -177,10 +174,10 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
                         viewModel.migrateYesterdayTasks()
                         showMigrationDialog = false
                     }
-                ) { Text("이월하기", color = MarginLineColor) }
+                ) { Text("이월하기", color = colors.marginLine) }
             },
             dismissButton = {
-                TextButton(onClick = { showMigrationDialog = false }) { Text("취소") }
+                TextButton(onClick = { showMigrationDialog = false }) { Text("취소", color = colors.subtleText) }
             }
         )
     }
@@ -230,6 +227,7 @@ private fun NotebookPage(
 private fun NotebookLine(
     content: @Composable (() -> Unit)? = null
 ) {
+    val colors = LocalNotebookColors.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -237,7 +235,7 @@ private fun NotebookLine(
             .drawBehind {
                 // Horizontal ruled line at bottom
                 drawLine(
-                    color = RuledLineColor,
+                    color = colors.ruledLine,
                     start = Offset(0f, size.height),
                     end = Offset(size.width, size.height),
                     strokeWidth = 0.5.dp.toPx()
@@ -245,7 +243,7 @@ private fun NotebookLine(
                 // Vertical margin line
                 val mx = MarginX.toPx()
                 drawLine(
-                    color = MarginLineColor,
+                    color = colors.marginLine,
                     start = Offset(mx, 0f),
                     end = Offset(mx, size.height),
                     strokeWidth = 1.dp.toPx()
@@ -268,6 +266,7 @@ private fun TaskOnLine(
     onEdit: (String) -> Unit,
     onDelete: () -> Unit
 ) {
+    val colors = LocalNotebookColors.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var editContent by remember(showEditDialog) { mutableStateOf(task.content) }
@@ -283,8 +282,8 @@ private fun TaskOnLine(
             onCheckedChange = { onToggle() },
             modifier = Modifier.size(36.dp),
             colors = CheckboxDefaults.colors(
-                checkedColor = CompletedRed,
-                uncheckedColor = Color(0xFFAAAAAA)
+                checkedColor = colors.completed,
+                uncheckedColor = colors.subtleText
             )
         )
 
@@ -297,7 +296,7 @@ private fun TaskOnLine(
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyLarge.copy(
                 textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                color = if (task.isCompleted) CompletedRed else NoteTextColor
+                color = if (task.isCompleted) colors.completed else colors.text
             )
         )
 
@@ -309,7 +308,7 @@ private fun TaskOnLine(
                 Icons.Default.Close,
                 contentDescription = "삭제",
                 modifier = Modifier.size(14.dp),
-                tint = Color(0xFFCCCCCC)
+                tint = colors.subtleText.copy(alpha = 0.6f)
             )
         }
     }
@@ -324,8 +323,12 @@ private fun TaskOnLine(
                     onValueChange = { editContent = it },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MarginLineColor,
-                        unfocusedBorderColor = RuledLineColor
+                        focusedBorderColor = colors.marginLine,
+                        unfocusedBorderColor = colors.ruledLine,
+                        focusedTextColor = colors.text,
+                        unfocusedTextColor = colors.text,
+                        focusedContainerColor = colors.inputContainer,
+                        unfocusedContainerColor = colors.inputContainer
                     )
                 )
             },
@@ -337,10 +340,10 @@ private fun TaskOnLine(
                         }
                         showEditDialog = false
                     }
-                ) { Text("수정") }
+                ) { Text("수정", color = colors.marginLine) }
             },
             dismissButton = {
-                TextButton(onClick = { showEditDialog = false }) { Text("취소") }
+                TextButton(onClick = { showEditDialog = false }) { Text("취소", color = colors.subtleText) }
             }
         )
     }
@@ -356,10 +359,10 @@ private fun TaskOnLine(
                         onDelete()
                         showDeleteDialog = false
                     }
-                ) { Text("삭제", color = CompletedRed) }
+                ) { Text("삭제", color = colors.completed) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("취소") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("취소", color = colors.subtleText) }
             }
         )
     }
@@ -375,12 +378,13 @@ private fun MigrationBanner(
     onMigrateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalNotebookColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .background(
-                color = Color(0xFFFFF9E6),
+                color = colors.bannerBackground,
                 shape = RoundedCornerShape(8.dp)
             )
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -390,7 +394,7 @@ private fun MigrationBanner(
         Text(
             text = "❭ 어제 미완료된 할 일 ${count}개",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF8D6E63)
+            color = colors.bannerText
         )
         TextButton(
             onClick = onMigrateClick,
@@ -399,7 +403,7 @@ private fun MigrationBanner(
             Text(
                 text = "이월하기 ➔",
                 style = MaterialTheme.typography.labelLarge,
-                color = MarginLineColor
+                color = colors.marginLine
             )
         }
     }
@@ -418,6 +422,7 @@ private fun DateHeader(
     onDateClick: () -> Unit,
     onTodayClick: () -> Unit
 ) {
+    val colors = LocalNotebookColors.current
     val displayFormatter = DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
 
     Column(
@@ -431,7 +436,7 @@ private fun DateHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onPreviousDay) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "이전 날", tint = NoteTextColor)
+                Icon(Icons.Default.ChevronLeft, contentDescription = "이전 날", tint = colors.text)
             }
 
             Column(
@@ -441,17 +446,17 @@ private fun DateHeader(
                 Text(
                     text = "${date.year}년",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF888888)
+                    color = colors.subtleText
                 )
                 Text(
                     text = date.format(displayFormatter),
                     style = MaterialTheme.typography.headlineSmall,
-                    color = NoteTextColor
+                    color = colors.text
                 )
             }
 
             IconButton(onClick = onNextDay) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "다음 날", tint = NoteTextColor)
+                Icon(Icons.Default.ChevronRight, contentDescription = "다음 날", tint = colors.text)
             }
         }
 
@@ -460,7 +465,7 @@ private fun DateHeader(
                 onClick = onTodayClick,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Text("오늘로 돌아가기")
+                Text("오늘로 돌아가기", color = colors.marginLine)
             }
         }
     }
@@ -476,11 +481,12 @@ private fun TaskInputBar(
     onTextChange: (String) -> Unit,
     onAdd: () -> Unit
 ) {
-    HorizontalDivider(color = RuledLineColor)
+    val colors = LocalNotebookColors.current
+    HorizontalDivider(color = colors.ruledLine)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PaperColor)
+            .background(colors.paper)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -488,23 +494,25 @@ private fun TaskInputBar(
             value = text,
             onValueChange = onTextChange,
             modifier = Modifier.weight(1f),
-            placeholder = { Text("할 일을 입력하세요", color = Color(0xFFBBBBBB)) },
+            placeholder = { Text("할 일을 입력하세요", color = colors.subtleText) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onAdd() }),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MarginLineColor,
-                unfocusedBorderColor = RuledLineColor,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
+                focusedBorderColor = colors.marginLine,
+                unfocusedBorderColor = colors.ruledLine,
+                focusedTextColor = colors.text,
+                unfocusedTextColor = colors.text,
+                focusedContainerColor = colors.inputContainer,
+                unfocusedContainerColor = colors.inputContainer
             )
         )
         Spacer(modifier = Modifier.width(8.dp))
         FilledIconButton(
             onClick = onAdd,
             colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = MarginLineColor,
+                containerColor = colors.marginLine,
                 contentColor = Color.White
             )
         ) {
