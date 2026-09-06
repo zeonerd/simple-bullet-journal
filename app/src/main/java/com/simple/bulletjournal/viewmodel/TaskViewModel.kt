@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -48,6 +49,14 @@ class TaskViewModel(
         .flatMapLatest { date -> repository.getTasksByDate(date.format(formatter)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val yesterdayUncompletedTasks: StateFlow<List<Task>> = _selectedDate
+        .flatMapLatest { date ->
+            repository.getTasksByDate(date.minusDays(1).format(formatter))
+                .map { list -> list.filter { !it.isCompleted } }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun selectDate(date: LocalDate) {
         _selectedDate.value = date
     }
@@ -73,6 +82,33 @@ class TaskViewModel(
                     content = content.trim()
                 )
             )
+            updateWidget()
+        }
+    }
+
+    fun editTask(task: Task, newContent: String) {
+        if (newContent.isBlank()) return
+        viewModelScope.launch {
+            repository.updateTask(task.copy(content = newContent.trim()))
+            updateWidget()
+        }
+    }
+
+    fun migrateYesterdayTasks() {
+        viewModelScope.launch {
+            val yesterday = _selectedDate.value.minusDays(1).format(formatter)
+            val currentDate = _selectedDate.value.format(formatter)
+            val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted }
+            if (uncompleted.isEmpty()) return@launch
+
+            uncompleted.forEach { task ->
+                repository.insertTask(
+                    Task(
+                        date = currentDate,
+                        content = task.content
+                    )
+                )
+            }
             updateWidget()
         }
     }

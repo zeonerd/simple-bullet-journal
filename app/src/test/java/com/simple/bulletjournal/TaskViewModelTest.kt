@@ -154,4 +154,63 @@ class TaskViewModelTest {
             assertEquals("내일 할 일", tomorrowTasks[0].content)
         }
     }
+
+    @Test
+    fun editTask_updatesTaskContent() = runTest {
+        viewModel.tasks.test {
+            assertEquals(emptyList<Task>(), awaitItem())
+
+            viewModel.addTask("원래 내용")
+            val list = awaitItem()
+            val task = list[0]
+
+            viewModel.editTask(task, "수정된 내용")
+            val updatedList = awaitItem()
+            assertEquals("수정된 내용", updatedList[0].content)
+        }
+    }
+
+    @Test
+    fun editTask_blankContent_doesNotUpdate() = runTest {
+        viewModel.tasks.test {
+            assertEquals(emptyList<Task>(), awaitItem())
+
+            viewModel.addTask("수정 불가 테스트")
+            val list = awaitItem()
+            val task = list[0]
+
+            viewModel.editTask(task, "")
+            viewModel.editTask(task, "   ")
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun migrateYesterdayTasks_copiesOnlyUncompletedTasksToCurrentDate() = runTest {
+        val today = LocalDate.now()
+        val yesterday = today.minusDays(1)
+
+        // 어제 할 일 2개 추가: 1개는 미완료, 1개는 완료
+        fakeRepository.insertTask(
+            Task(id = 1, date = yesterday.format(formatter), content = "어제 미완료 할 일", isCompleted = false)
+        )
+        fakeRepository.insertTask(
+            Task(id = 2, date = yesterday.format(formatter), content = "어제 완료된 일", isCompleted = true)
+        )
+
+        viewModel.tasks.test {
+            // 오늘 날짜의 초기 할 일 목록은 비어있음
+            assertEquals(emptyList<Task>(), awaitItem())
+
+            // 어제 미완료 할 일 이월 실행
+            viewModel.migrateYesterdayTasks()
+
+            // 오늘 날짜로 미완료 할 일만 이월되어 추가되었는지 검증
+            val todayTasks = awaitItem()
+            assertEquals(1, todayTasks.size)
+            assertEquals("어제 미완료 할 일", todayTasks[0].content)
+            assertEquals(today.format(formatter), todayTasks[0].date)
+            assertFalse(todayTasks[0].isCompleted)
+        }
+    }
 }

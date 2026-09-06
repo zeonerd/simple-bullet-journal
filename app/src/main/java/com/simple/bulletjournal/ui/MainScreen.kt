@@ -83,8 +83,10 @@ private val NoteTextColor = Color(0xFF333333)
 fun MainScreen(viewModel: TaskViewModel = viewModel()) {
     val selectedDate by viewModel.selectedDate.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
+    val yesterdayUncompletedTasks by viewModel.yesterdayUncompletedTasks.collectAsState()
     var newTaskText by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showMigrationDialog by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val isToday = selectedDate == LocalDate.now()
 
@@ -106,10 +108,19 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
                 onTodayClick = viewModel::goToToday
             )
 
+            // ── Migration Banner (if yesterday has uncompleted tasks) ──
+            if (yesterdayUncompletedTasks.isNotEmpty()) {
+                MigrationBanner(
+                    count = yesterdayUncompletedTasks.size,
+                    onMigrateClick = { showMigrationDialog = true }
+                )
+            }
+
             // ── Notebook Page ──
             NotebookPage(
                 tasks = tasks,
                 onToggle = viewModel::toggleTask,
+                onEdit = viewModel::editTask,
                 onDelete = viewModel::deleteTask,
                 modifier = Modifier.weight(1f)
             )
@@ -153,6 +164,26 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
             DatePicker(state = datePickerState)
         }
     }
+
+    // ── Migration Confirmation Dialog ──
+    if (showMigrationDialog) {
+        AlertDialog(
+            onDismissRequest = { showMigrationDialog = false },
+            title = { Text("어제 할 일 이월") },
+            text = { Text("어제 완료하지 못한 할 일 ${yesterdayUncompletedTasks.size}개를 오늘로 가져오시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.migrateYesterdayTasks()
+                        showMigrationDialog = false
+                    }
+                ) { Text("이월하기", color = MarginLineColor) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMigrationDialog = false }) { Text("취소") }
+            }
+        )
+    }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -163,6 +194,7 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
 private fun NotebookPage(
     tasks: List<Task>,
     onToggle: (Task) -> Unit,
+    onEdit: (Task, String) -> Unit,
     onDelete: (Task) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -181,6 +213,7 @@ private fun NotebookPage(
                     TaskOnLine(
                         task = task,
                         onToggle = { onToggle(task) },
+                        onEdit = { newContent -> onEdit(task, newContent) },
                         onDelete = { onDelete(task) }
                     )
                 }
@@ -232,9 +265,12 @@ private fun NotebookLine(
 private fun TaskOnLine(
     task: Task,
     onToggle: () -> Unit,
+    onEdit: (String) -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editContent by remember(showEditDialog) { mutableStateOf(task.content) }
 
     Row(
         modifier = Modifier
@@ -254,7 +290,9 @@ private fun TaskOnLine(
 
         Text(
             text = task.content,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clickable { showEditDialog = true },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyLarge.copy(
@@ -276,6 +314,37 @@ private fun TaskOnLine(
         }
     }
 
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("할 일 수정") },
+            text = {
+                OutlinedTextField(
+                    value = editContent,
+                    onValueChange = { editContent = it },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MarginLineColor,
+                        unfocusedBorderColor = RuledLineColor
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (editContent.isNotBlank()) {
+                            onEdit(editContent.trim())
+                        }
+                        showEditDialog = false
+                    }
+                ) { Text("수정") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) { Text("취소") }
+            }
+        )
+    }
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -293,6 +362,46 @@ private fun TaskOnLine(
                 TextButton(onClick = { showDeleteDialog = false }) { Text("취소") }
             }
         )
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  Migration Banner
+// ══════════════════════════════════════════════════════════
+
+@Composable
+private fun MigrationBanner(
+    count: Int,
+    onMigrateClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .background(
+                color = Color(0xFFFFF9E6),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "❭ 어제 미완료된 할 일 ${count}개",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF8D6E63)
+        )
+        TextButton(
+            onClick = onMigrateClick,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
+        ) {
+            Text(
+                text = "이월하기 ➔",
+                style = MaterialTheme.typography.labelLarge,
+                color = MarginLineColor
+            )
+        }
     }
 }
 
