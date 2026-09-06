@@ -24,7 +24,18 @@ class TaskViewModel(
     application: Application,
     private val repository: TaskRepository = TaskRepositoryImpl(
         AppDatabase.getInstance(application).taskDao()
-    )
+    ),
+    private val widgetUpdater: suspend () -> Unit = {
+        try {
+            val manager = GlanceAppWidgetManager(application)
+            val glanceIds = manager.getGlanceIds(BulletJournalWidget::class.java)
+            glanceIds.forEach { glanceId ->
+                BulletJournalWidget().update(application, glanceId)
+            }
+        } catch (_: Exception) {
+            // Widget might not be placed yet
+        }
+    }
 ) : AndroidViewModel(application) {
 
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -81,15 +92,6 @@ class TaskViewModel(
     }
 
     private suspend fun updateWidget() {
-        try {
-            val context = getApplication<Application>()
-            val manager = GlanceAppWidgetManager(context)
-            val glanceIds = manager.getGlanceIds(BulletJournalWidget::class.java)
-            glanceIds.forEach { glanceId ->
-                BulletJournalWidget().update(context, glanceId)
-            }
-        } catch (_: Exception) {
-            // Widget might not be placed yet
-        }
+        widgetUpdater()
     }
 }
