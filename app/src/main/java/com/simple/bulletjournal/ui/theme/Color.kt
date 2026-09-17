@@ -25,7 +25,7 @@ val LightPriority = Color(0xFFF57F17)
 // ── Dark Chalkboard / Notebook Colors ──
 val DarkPaper = Color(0xFF1A1D20)
 val DarkRuledLine = Color(0xFF2D3748)
-val DarkMarginLine = Color(0xFF5C3840)
+val DarkMarginLine = Color(0xFFE57373) // Brightened for visibility (Red Chalk)
 val DarkNoteText = Color(0xFFE8EAEF)
 val DarkNoteSubtleText = Color(0xFFA0AEC0)
 val DarkCompleted = Color(0xFFFF6B6B)

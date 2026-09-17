@@ -35,7 +35,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
+import androidx.glance.color.ColorProvider
 import com.simple.bulletjournal.MainActivity
 import com.simple.bulletjournal.data.AppDatabase
 import com.simple.bulletjournal.data.Task
@@ -45,16 +45,20 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+import com.simple.bulletjournal.ui.theme.*
+
 // ── Notebook style colors (matches app) ──
-private val PaperColor = ColorProvider(Color(0xFFFFFEF0))
-private val RuledLineColor = ColorProvider(Color(0xFFB8D4E3))
-private val MarginLineColor = ColorProvider(Color(0xFFE0AAAA))
-private val NoteTextColor = ColorProvider(Color(0xFF333333))
-private val CompletedRedColor = ColorProvider(Color(0xFFE53935))
-private val SubtleTextColor = ColorProvider(Color(0xFF888888))
-private val BannerBgColor = ColorProvider(Color(0xFFFFF9E6))
-private val BannerTextColor = ColorProvider(Color(0xFF8D6E63))
-private val ActionTextColor = ColorProvider(Color(0xFFD32F2F))
+private val PaperColor = ColorProvider(day = LightPaper, night = DarkPaper)
+private val RuledLineColor = ColorProvider(day = LightRuledLine, night = DarkRuledLine)
+private val MarginLineColor = ColorProvider(day = LightMarginLine, night = DarkMarginLine)
+private val NoteTextColor = ColorProvider(day = LightNoteText, night = DarkNoteText)
+private val CompletedRedColor = ColorProvider(day = LightCompleted, night = DarkCompleted)
+private val SubtleTextColor = ColorProvider(day = LightNoteSubtleText, night = DarkNoteSubtleText)
+private val BannerBgColor = ColorProvider(day = LightBannerBackground, night = DarkBannerBackground)
+private val BannerTextColor = ColorProvider(day = LightBannerText, night = DarkBannerText)
+private val ActionTextColor = ColorProvider(day = LightCompleted, night = DarkCompleted)
+private val PriorityColor = ColorProvider(day = LightPriority, night = DarkPriority)
+
 
 class BulletJournalWidget : GlanceAppWidget() {
 
@@ -63,7 +67,7 @@ class BulletJournalWidget : GlanceAppWidget() {
         val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
         val tasks = repository.getTasksByDateOnce(today)
-        val uncompletedYesterdayCount = repository.getTasksByDateOnce(yesterday).count { !it.isCompleted }
+        val uncompletedYesterdayCount = repository.getTasksByDateOnce(yesterday).count { !it.isCompleted && !it.isMigrated }
         val displayDate = LocalDate.now().format(
             DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
         )
@@ -127,7 +131,7 @@ class BulletJournalWidget : GlanceAppWidget() {
                         )
                     )
                     Text(
-                        text = "이월 ➔",
+                        text = "가져오기 ➔",
                         modifier = GlanceModifier.clickable(actionRunCallback<MigrateTasksAction>()),
                         style = TextStyle(
                             fontSize = 11.sp,
@@ -257,7 +261,7 @@ class MigrateTasksAction : ActionCallback {
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
-        val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted }
+        val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted && !it.isMigrated }
         uncompleted.forEach { task ->
             repository.insertTask(
                 Task(
@@ -266,6 +270,7 @@ class MigrateTasksAction : ActionCallback {
                     isPriority = task.isPriority
                 )
             )
+            repository.updateTask(task.copy(isMigrated = true))
         }
         BulletJournalWidget().update(context, glanceId)
     }

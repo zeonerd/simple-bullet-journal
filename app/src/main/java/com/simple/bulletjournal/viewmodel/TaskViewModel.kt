@@ -7,6 +7,7 @@ import com.simple.bulletjournal.data.Task
 import com.simple.bulletjournal.data.TaskRepository
 import com.simple.bulletjournal.widget.BulletJournalWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,13 +30,9 @@ class TaskViewModel @Inject constructor(
 
     var widgetUpdater: suspend () -> Unit = {
         try {
-            val manager = GlanceAppWidgetManager(application)
-            val glanceIds = manager.getGlanceIds(BulletJournalWidget::class.java)
-            glanceIds.forEach { glanceId ->
-                BulletJournalWidget().update(application, glanceId)
-            }
-        } catch (_: Exception) {
-            // Widget might not be placed yet
+            BulletJournalWidget().updateAll(application)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -53,7 +50,7 @@ class TaskViewModel @Inject constructor(
     val yesterdayUncompletedTasks: StateFlow<List<Task>> = _selectedDate
         .flatMapLatest { date ->
             repository.getTasksByDate(date.minusDays(1).format(formatter))
-                .map { list -> list.filter { !it.isCompleted } }
+                .map { list -> list.filter { !it.isCompleted && !it.isMigrated } }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -98,7 +95,7 @@ class TaskViewModel @Inject constructor(
         viewModelScope.launch {
             val yesterday = _selectedDate.value.minusDays(1).format(formatter)
             val currentDate = _selectedDate.value.format(formatter)
-            val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted }
+            val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted && !it.isMigrated }
             if (uncompleted.isEmpty()) return@launch
 
             uncompleted.forEach { task ->
@@ -109,6 +106,7 @@ class TaskViewModel @Inject constructor(
                         isPriority = task.isPriority
                     )
                 )
+                repository.updateTask(task.copy(isMigrated = true))
             }
             updateWidget()
         }

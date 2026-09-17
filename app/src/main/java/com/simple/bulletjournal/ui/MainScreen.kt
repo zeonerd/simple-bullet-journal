@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -97,6 +98,7 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
         ) {
             // ── Date Header ──
             DateHeader(
@@ -170,7 +172,7 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
     if (showMigrationDialog) {
         AlertDialog(
             onDismissRequest = { showMigrationDialog = false },
-            title = { Text("어제 할 일 이월") },
+            title = { Text("어제 할 일 가져오기") },
             text = { Text("어제 완료하지 못한 할 일 ${yesterdayUncompletedTasks.size}개를 오늘로 가져오시겠습니까?") },
             confirmButton = {
                 TextButton(
@@ -178,7 +180,7 @@ fun MainScreen(viewModel: TaskViewModel = viewModel()) {
                         viewModel.migrateYesterdayTasks()
                         showMigrationDialog = false
                     }
-                ) { Text("이월하기", color = colors.marginLine) }
+                ) { Text("가져오기", color = colors.marginLine) }
             },
             dismissButton = {
                 TextButton(onClick = { showMigrationDialog = false }) { Text("취소", color = colors.subtleText) }
@@ -421,7 +423,7 @@ private fun MigrationBanner(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
         ) {
             Text(
-                text = "이월하기 ➔",
+                text = "가져오기 ➔",
                 style = MaterialTheme.typography.labelLarge,
                 color = colors.marginLine
             )
@@ -485,7 +487,7 @@ private fun DateHeader(
                 onClick = onTodayClick,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                Text("오늘로 돌아가기", color = colors.marginLine)
+                Text("오늘로 돌아가기", color = colors.marginLine, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             }
         }
     }
