@@ -25,13 +25,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            BulletJournalApp()
+            BulletJournalRoot()
         }
     }
 }
 
 @Composable
-private fun BulletJournalApp(settingsViewModel: SettingsViewModel = hiltViewModel()) {
+private fun BulletJournalRoot(settingsViewModel: SettingsViewModel = hiltViewModel()) {
     val preferences by settingsViewModel.userPreferences.collectAsState()
     val systemInDarkTheme = isSystemInDarkTheme()
     val darkTheme = when (preferences.themeMode) {

@@ -112,7 +112,7 @@
 
 ### 이슈 1: `MainScreen`이 Hilt가 아닌 기본 `viewModel()`로 `TaskViewModel`을 생성함 — ✅ 2026-09-20 해결
 * **해결 내용**: `androidx.hilt:hilt-navigation-compose` 의존성을 추가하고, [`MainScreen.kt`](app/src/main/java/com/simple/bulletjournal/ui/MainScreen.kt)의 `fun MainScreen(viewModel: TaskViewModel = viewModel())`를 `hiltViewModel()`로 교체했습니다. `./gradlew assembleDebug`, `./gradlew testDebugUnitTest` 모두 정상 컴파일/실행 확인.
-* **미검증 항목**: 이 머신에는 AVD(에뮬레이터)가 하나도 설치되어 있지 않아, 실제 기기/에뮬레이터에서 화면이 뜨는지(런타임 크래시 여부)는 아직 눈으로 확인하지 못했습니다. 다음 세션에서 Android Studio로 실행해 최종 확인할 것.
+* **실기기 검증**: ✅ 완료(2026-09-20). Samsung SM-S711N 실기기(release 서명 빌드)에서 정상 렌더링 확인. (검증 과정에서 이슈 5의 완전히 별개인 렌더링 버그를 발견 — 아래 참고.)
 * (과거 서술 보존) `TaskViewModel`은 `@Inject constructor(application: Application, private val repository: TaskRepository)` 형태라 `repository`를 해석하려면 Hilt 팩토리가 필요했고, 기본 Compose `viewModel()`이 쓰는 `SavedStateViewModelFactory`는 이를 몰라 런타임 인스턴스화가 실패할 수 있는 구조였습니다. 단위 테스트는 생성자를 직접 호출해 이 경로를 타지 않아 지금까지 드러나지 않았습니다.
 
 ### 이슈 2: `orderIndex`는 저장만 되고 갱신 로직이 없음
@@ -123,9 +123,16 @@
 * **현황**: 3절에서 설명한 대로 위젯 관련 3개 지점 모두 `TaskRepositoryImpl`을 직접 생성합니다. 기능상 문제는 없지만, 향후 Repository에 Hilt로만 주입 가능한 의존성(예: DataStore, 원격 API)이 추가되면 위젯 쪽 코드도 반드시 함께 손봐야 합니다.
 
 ### 이슈 4: `migrateYesterdayTasks` 단위 테스트가 간헐적으로 타임아웃 실패함 (2026-09-20 발견)
-* **현황**: `TaskViewModelTest.migrateYesterdayTasks_copiesOnlyUncompletedTasksToCurrentDate` 테스트가 `./gradlew testDebugUnitTest` 실행 시 `app.cash.turbine.TurbineAssertionError: No value produced in 3s`로 실패하는 것을 확인했습니다(13개 중 1개 실패).
+* **현황**: `TaskViewModelTest.migrateYesterdayTasks_copiesOnlyUncompletedTasksToCurrentDate` 테스트가 `./gradlew testDebugUnitTest` 실행 시 `app.cash.turbine.TurbineAssertionError: No value produced in 3s`로 실패하는 것을 확인했습니다(19개 중 1개 실패).
 * **비고**: 이번 세션에서 만진 `MainScreen`/Hilt 관련 변경과는 무관한 기존 결함으로 보입니다. `migrateYesterdayTasks()`가 `insertTask`/`updateTask`를 태스크 수만큼 순차 `launch` 내에서 여러 번 호출하는데, `FakeTaskRepository`의 Flow 방출 타이밍과 Turbine의 `awaitItem()` 기대 횟수가 어긋나 있을 가능성이 있습니다.
 * **권장 조치**: 다음 소스 업데이트 시 `FakeTaskRepository.kt`와 해당 테스트의 `awaitItem()` 호출 횟수를 대조해 원인을 확인하고 수정할 것.
+
+### 이슈 5: `BulletJournalApp`이라는 이름의 최상위 컴포저블이 `Application` 클래스와 충돌해 화면이 완전히 빈 채로 렌더링됨 — ✅ 2026-09-20 해결
+* **증상**: 앱을 실기기에 설치해서 실행하면 크래시 없이 정상적으로 "Displayed"까지 되지만, 화면에는 배경색만 채워지고 어떤 UI도 그려지지 않았습니다(설정 화면 진입용 톱니바퀴 아이콘도 당연히 안 보였습니다). `uiautomator dump`로 확인해도 `android:id/content` 아래에 자식 뷰가 단 하나도 없었고, `logcat`(main/system/crash 버퍼 전부) 어디에도 예외나 크래시 로그가 없었습니다.
+* **근본 원인**: [`MainActivity.kt`](app/src/main/java/com/simple/bulletjournal/MainActivity.kt)에서 `setContent { BulletJournalApp() }`로 최상위 컴포저블을 호출하고 있었는데, 이 컴포저블 함수의 이름이 **같은 패키지의 `BulletJournalApp.kt`에 있는 `class BulletJournalApp : Application()`과 완전히 동일**했습니다. `Application` 클래스는 암묵적으로 인자 없는 public 생성자를 가지므로, `BulletJournalApp()`이라는 호출식이 우리가 만든 컴포저블 함수(파라미터 `settingsViewModel: SettingsViewModel = hiltViewModel()`에 기본값이 있어 인자 없이도 호출 가능)와 `Application`의 생성자 호출 사이에서 **오버로드 해석 시 컴파일 에러나 경고 없이 조용히 생성자 쪽으로 resolve**되었습니다. 즉 매번 새 `BulletJournalApp` 인스턴스를 만들어서 버리기만 했을 뿐, 실제 UI 컴포저블은 단 한 번도 실행되지 않았습니다.
+* **디버깅 방법**: `Log.d`를 `onCreate()`와 컴포저블 최상단에 순서대로 심어서 어디까지 로그가 찍히는지 이분탐색했습니다. `setContent`의 람다 진입 로그는 찍혔지만, 컴포저블 함수 본문의 첫 줄 로그는 전혀 찍히지 않는 것으로 좁혀졌고, 이는 "함수가 아예 호출되지 않았다"는 뜻이었습니다.
+* **해결**: 컴포저블 함수 이름을 `BulletJournalApp` → `BulletJournalRoot`로 변경. 실기기(Samsung SM-S711N, release 서명 빌드)에서 메인 화면·설정 화면·뒤로가기까지 전부 정상 동작 확인했습니다.
+* **교훈**: 같은 패키지 안에서 클래스명과 최상위 함수명이 겹치면(특히 그 클래스가 인자 없는 생성자를 가진 경우) Kotlin이 경고 없이 엉뚱한 쪽을 호출할 수 있습니다. 향후 최상위 컴포저블 함수는 `XxxApp`처럼 `Application` 서브클래스와 헷갈릴 수 있는 이름을 피하고, 이번처럼 `XxxRoot` 또는 `XxxScreen` 계열로 명명할 것.
 
 ---
 
@@ -159,8 +166,8 @@
 
 | 항목 | 내용 |
 |---|---|
-| **6절 이슈 1 해결** | ✅ 완료(2026-09-20): `MainScreen`이 `hiltViewModel()`을 쓰도록 수정, 빌드/단위테스트 통과 확인. **다만 실기기/에뮬레이터 화면 검증은 아직 남아 있음** — 다음 세션에서 최우선 확인. |
-| **설정 화면(SettingsScreen) 신설** | ✅ 완료(2026-09-20): `SettingsScreen` + `SettingsViewModel` 추가, `MainScreen` 상단에 톱니바퀴 아이콘으로 진입. 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태(`mutableStateOf<Boolean>`)로 `MainScreen` ↔ `SettingsScreen` 토글(화면이 2개뿐이라 `NavHost`는 과함). 테마 라디오 3개(시스템/라이트/다크)는 `MainActivity`가 `SettingsViewModel.userPreferences`를 구독해 `BulletJournalTheme(darkTheme=...)`에 실시간 반영. 광고 제거 버튼은 UI/상태 배선만 완료 — 클릭 시 `setAdRemoved(true)`를 **직접** 호출하는 임시 구현이며, Phase 2에서 Play Billing 구매 콜백으로 교체 예정(코드에 `TODO(Phase 2)` 표시). 빌드/단위테스트(`SettingsViewModelTest` 3건) 통과 확인, 실기기 화면 검증은 미실시. |
+| **6절 이슈 1 해결** | ✅ 완료(2026-09-20): `MainScreen`이 `hiltViewModel()`을 쓰도록 수정, 빌드/단위테스트/실기기 화면 검증 모두 통과. |
+| **설정 화면(SettingsScreen) 신설** | ✅ 완료(2026-09-20): `SettingsScreen` + `SettingsViewModel` 추가, `MainScreen` 상단에 톱니바퀴 아이콘으로 진입. 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태(`mutableStateOf<Boolean>`)로 `MainScreen` ↔ `SettingsScreen` 토글(화면이 2개뿐이라 `NavHost`는 과함). 테마 라디오 3개(시스템/라이트/다크)는 `MainActivity`가 `SettingsViewModel.userPreferences`를 구독해 `BulletJournalTheme(darkTheme=...)`에 실시간 반영. 광고 제거 버튼은 UI/상태 배선만 완료 — 클릭 시 `setAdRemoved(true)`를 **직접** 호출하는 임시 구현이며, Phase 2에서 Play Billing 구매 콜백으로 교체 예정(코드에 `TODO(Phase 2)` 표시). 빌드/단위테스트/실기기 화면 검증(테마 전환, 설정 진입·뒤로가기) 모두 통과. 실기기 검증 과정에서 발견된 별개의 렌더링 버그는 6절 이슈 5 참고. |
 | **DataStore Preferences 도입** | ✅ 완료(2026-09-20): `UserPreferencesRepository`/`DataStoreModule` 추가, 단위 테스트 3개 통과. `isAdRemoved`/`themeMode` 저장 가능. **아직 UI/ViewModel에서 실제로 쓰이진 않음** — 설정 화면에서 주입해 소비하는 게 다음 작업. |
 
 ### Phase 1 — 광고 (AdMob 배너)
