@@ -104,6 +104,10 @@
 * **구현 방향**:
   * 사용자가 작성한 전체 저널 데이터를 JSON 또는 CSV 파일로 로컬 저장소/드라이브에 내보내기 및 복원(Import/Export) 기능.
 
+### 과제 5: 라이트 테마 상태바 아이콘 대비 개선 (버그 수정, 2026-09-20 접수) — 우선순위 높음
+* **현황**: 6절 "이슈 6" 참고. OS 다크모드 + 앱 내 테마를 "라이트"로 선택한 조합에서 상태바 아이콘이 흰색에 가까워 식별이 거의 불가능한 사용성 버그.
+* **구현 방향**: `BulletJournalRoot`에서 `darkTheme` 상태 변화에 반응해 `WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme`를 호출하도록 수정. 스토어 심사와는 무관하지만 실사용 품질에 직접 영향을 주므로, 다른 로드맵 과제보다 먼저 처리 권장.
+
 ---
 
 ## 6. 확인된 이슈 (Known Issues)
@@ -133,6 +137,12 @@
 * **디버깅 방법**: `Log.d`를 `onCreate()`와 컴포저블 최상단에 순서대로 심어서 어디까지 로그가 찍히는지 이분탐색했습니다. `setContent`의 람다 진입 로그는 찍혔지만, 컴포저블 함수 본문의 첫 줄 로그는 전혀 찍히지 않는 것으로 좁혀졌고, 이는 "함수가 아예 호출되지 않았다"는 뜻이었습니다.
 * **해결**: 컴포저블 함수 이름을 `BulletJournalApp` → `BulletJournalRoot`로 변경. 실기기(Samsung SM-S711N, release 서명 빌드)에서 메인 화면·설정 화면·뒤로가기까지 전부 정상 동작 확인했습니다.
 * **교훈**: 같은 패키지 안에서 클래스명과 최상위 함수명이 겹치면(특히 그 클래스가 인자 없는 생성자를 가진 경우) Kotlin이 경고 없이 엉뚱한 쪽을 호출할 수 있습니다. 향후 최상위 컴포저블 함수는 `XxxApp`처럼 `Application` 서브클래스와 헷갈릴 수 있는 이름을 피하고, 이번처럼 `XxxRoot` 또는 `XxxScreen` 계열로 명명할 것.
+
+### 이슈 6: 라이트 테마에서 상태바 아이콘이 흰색에 가까워 식별 불가능함 (2026-09-20 발견, 미해결 — 백로그)
+* **증상**: 설정에서 테마를 "라이트"로 선택하면 앱 배경은 밝은 줄공책 색(`LightPaper`)으로 바뀌지만, 상단 상태바(시계/배터리/네트워크 아이콘)는 여전히 흰색에 가까운 밝은 색으로 남아 있어 사람 눈으로 거의 식별이 안 됩니다.
+* **근본 원인(추정)**: [`MainActivity.kt`](app/src/main/java/com/simple/bulletjournal/MainActivity.kt)의 `onCreate()`에서 `enableEdgeToEdge()`를 인자 없이 한 번만 호출합니다. 이 함수는 호출 시점의 **시스템(OS) 다크모드 여부**를 기준으로 상태바 아이콘 밝기(라이트/다크 아이콘)를 자동 결정하는데, 이는 우리 앱이 `SettingsViewModel`을 통해 자체적으로 계산하는 `darkTheme`(사용자가 고른 시스템/라이트/다크 설정)과 **서로 다른 값**입니다. 예를 들어 폰의 OS 자체는 다크모드인데 앱 내에서 "라이트"를 선택한 경우, `enableEdgeToEdge()`는 OS 기준으로 "어두운 배경이니 밝은 아이콘"으로 한 번 결정하고 끝나버리고, 이후 `BulletJournalTheme`이 실제로는 밝은 배경을 그려도 상태바 아이콘 색은 갱신되지 않습니다.
+* **영향 범위**: 폰 OS가 다크모드 + 앱 내 테마를 "라이트"로 선택한 조합에서만 발생합니다. "시스템 기본"을 쓰거나 OS와 앱 테마가 같은 방향이면 우연히 맞아떨어져 문제가 드러나지 않습니다.
+* **권장 조치**: `BulletJournalRoot`에서 `darkTheme` 값이 바뀔 때마다 `WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme`를 호출하도록 `SideEffect`/`LaunchedEffect(darkTheme)`를 추가해, 상태바 아이콘 밝기를 앱의 실제 테마 상태에 반응형으로 맞출 것. `enableEdgeToEdge()`의 최초 1회 자동 감지에만 의존하지 않도록 수정.
 
 ---
 
