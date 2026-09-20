@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.rounded.Add
@@ -80,7 +81,10 @@ private val MarginX = 36.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: TaskViewModel = hiltViewModel()) {
+fun MainScreen(
+    onSettingsClick: () -> Unit = {},
+    viewModel: TaskViewModel = hiltViewModel()
+) {
     val colors = LocalNotebookColors.current
     val selectedDate by viewModel.selectedDate.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
@@ -100,6 +104,22 @@ fun MainScreen(viewModel: TaskViewModel = hiltViewModel()) {
                 .padding(padding)
                 .imePadding()
         ) {
+            // ── Top Bar (settings entry point) ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        Icons.Filled.Settings,
+                        contentDescription = "설정",
+                        tint = colors.subtleText
+                    )
+                }
+            }
+
             // ── Date Header ──
             DateHeader(
                 date = selectedDate,

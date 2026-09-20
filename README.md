@@ -41,7 +41,12 @@
    - 날짜 텍스트 탭 시 `DatePickerDialog`로 특정 날짜 바로 이동
    - 오늘이 아닌 날짜를 보고 있을 때 "오늘로 돌아가기" 버튼 노출
 
-6. **홈 화면 위젯 (Glance AppWidget)**
+6. **설정 화면**
+   - 상단 톱니바퀴 아이콘으로 진입
+   - 테마 선택(시스템 기본 / 라이트 / 다크) — 즉시 앱 전체에 반영
+   - 광고 제거 진입점(현재는 UI 배선만 완료, 실제 결제는 다음 단계에서 연동 예정)
+
+7. **홈 화면 위젯 (Glance AppWidget)**
    - 앱을 켜지 않고도 홈 화면에서 오늘 할 일 확인 및 체크 토글
    - 위젯 상에서 어제 미완료 할 일 즉시 가져오기(`가져오기 ➔`) 기능 지원
    - 중요(★) 할 일 시각적 볼드 강조
@@ -57,7 +62,7 @@
   - 날짜 컬럼 인덱싱(`@Index(["date"])`)으로 빠른 조회 속도 보장
 - **아키텍처**: MVVM + Clean Repository Pattern
   - `TaskDao` ➔ `TaskRepository` ➔ `TaskViewModel` ➔ Compose UI
-  - `MainScreen`은 `hiltViewModel()`로 `TaskViewModel`을 생성합니다(`androidx.hilt:hilt-navigation-compose`). Glance 위젯(`BulletJournalWidget`, `ToggleTaskAction`, `MigrateTasksAction`)은 여전히 Hilt를 거치지 않고 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`을 직접 생성합니다 — 상세 내용은 [HANDOVER.md](HANDOVER.md) 참고.
+  - `MainScreen`/`SettingsScreen` 모두 `hiltViewModel()`로 각각 `TaskViewModel`/`SettingsViewModel`을 생성합니다(`androidx.hilt:hilt-navigation-compose`). 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태로 처리합니다. Glance 위젯(`BulletJournalWidget`, `ToggleTaskAction`, `MigrateTasksAction`)은 여전히 Hilt를 거치지 않고 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`을 직접 생성합니다 — 상세 내용은 [HANDOVER.md](HANDOVER.md) 참고.
 - **의존성 주입(DI)**: Google Hilt 2.60.1
 - **비동기 처리**: Kotlin Coroutines & Flow (`StateFlow`, `flatMapLatest`)
 - **테스트 프레임워크**: JUnit 4, Kotlinx Coroutines Test, Turbine (`testDebugUnitTest`)
@@ -84,20 +89,24 @@ app/src/
 │   │   ├── DatabaseModule.kt         # AppDatabase, TaskDao, TaskRepository 싱글톤 주입(@Provides)을 한 파일에서 처리
 │   │   └── DataStoreModule.kt        # DataStore<Preferences>, UserPreferencesRepository 싱글톤 주입
 │   ├── ui/                           # UI 계층
-│   │   ├── MainScreen.kt             # 공책 메인 화면 (날짜 헤더, 이월 배너, 줄노트, 입력 바)
+│   │   ├── MainScreen.kt             # 공책 메인 화면 (설정 진입 버튼, 날짜 헤더, 이월 배너, 줄노트, 입력 바)
+│   │   ├── SettingsScreen.kt         # 설정 화면 (테마 선택, 광고 제거)
 │   │   └── theme/                    # 테마 및 디자인 시스템
 │   │       ├── Color.kt              # 라이트(종이) / 다크(칠판) 컬러 정의
 │   │       ├── Theme.kt              # NotebookColors CompositionLocal Provider
 │   │       └── Type.kt               # 타이포그래피
 │   ├── viewmodel/                    # 프레젠테이션 계층
-│   │   └── TaskViewModel.kt          # 날짜 선택, 태스크 CRUD, 이월 및 위젯 갱신
+│   │   ├── TaskViewModel.kt          # 날짜 선택, 태스크 CRUD, 이월 및 위젯 갱신
+│   │   └── SettingsViewModel.kt      # 테마/광고제거 설정값 읽기·쓰기
 │   └── widget/                       # Glance 홈 화면 위젯
 │       ├── BulletJournalWidget.kt    # 위젯 UI, ToggleTaskAction, MigrateTasksAction
 │       └── WidgetReceiver.kt         # 위젯 리시버
 └── test/java/com/simple/bulletjournal/
     ├── FakeTaskRepository.kt              # 인메모리 Fake Repository (정렬 로직 일치화)
+    ├── FakeUserPreferencesRepository.kt   # 인메모리 Fake 설정값 Repository
     ├── MainDispatcherRule.kt              # Coroutine TestRule (UnconfinedTestDispatcher)
-    ├── TaskViewModelTest.kt               # ViewModel 단위 테스트 스위트
+    ├── TaskViewModelTest.kt               # TaskViewModel 단위 테스트 스위트
+    ├── SettingsViewModelTest.kt           # SettingsViewModel 단위 테스트 스위트
     └── UserPreferencesRepositoryTest.kt   # DataStore 기반 설정값 저장/조회 테스트
 ```
 

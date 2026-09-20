@@ -160,7 +160,7 @@
 | 항목 | 내용 |
 |---|---|
 | **6절 이슈 1 해결** | ✅ 완료(2026-09-20): `MainScreen`이 `hiltViewModel()`을 쓰도록 수정, 빌드/단위테스트 통과 확인. **다만 실기기/에뮬레이터 화면 검증은 아직 남아 있음** — 다음 세션에서 최우선 확인. |
-| **설정 화면(SettingsScreen) 신설** | "광고 제거" 구매 버튼과 (5절 과제 2였던) 테마 선택을 배치할 화면이 필요합니다. 현재는 `MainScreen` 하나뿐입니다. |
+| **설정 화면(SettingsScreen) 신설** | ✅ 완료(2026-09-20): `SettingsScreen` + `SettingsViewModel` 추가, `MainScreen` 상단에 톱니바퀴 아이콘으로 진입. 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태(`mutableStateOf<Boolean>`)로 `MainScreen` ↔ `SettingsScreen` 토글(화면이 2개뿐이라 `NavHost`는 과함). 테마 라디오 3개(시스템/라이트/다크)는 `MainActivity`가 `SettingsViewModel.userPreferences`를 구독해 `BulletJournalTheme(darkTheme=...)`에 실시간 반영. 광고 제거 버튼은 UI/상태 배선만 완료 — 클릭 시 `setAdRemoved(true)`를 **직접** 호출하는 임시 구현이며, Phase 2에서 Play Billing 구매 콜백으로 교체 예정(코드에 `TODO(Phase 2)` 표시). 빌드/단위테스트(`SettingsViewModelTest` 3건) 통과 확인, 실기기 화면 검증은 미실시. |
 | **DataStore Preferences 도입** | ✅ 완료(2026-09-20): `UserPreferencesRepository`/`DataStoreModule` 추가, 단위 테스트 3개 통과. `isAdRemoved`/`themeMode` 저장 가능. **아직 UI/ViewModel에서 실제로 쓰이진 않음** — 설정 화면에서 주입해 소비하는 게 다음 작업. |
 
 ### Phase 1 — 광고 (AdMob 배너)
@@ -180,6 +180,12 @@
 3. 구매 완료 시 `acknowledgePurchase()`를 반드시 호출합니다 (호출하지 않으면 Play 정책상 3일 뒤 자동 환불됩니다).
 4. 설정 화면에 "광고 제거" 구매 버튼과 "구매 복원" 버튼을 배치합니다.
 5. 결제 성공 → `isAdRemoved = true` → 광고 즉시 숨김 → 앱 재실행 후에도 유지되는지 QA로 확인합니다.
+
+> **개발자 본인 사용 관련 결정 (2026-09-20)**: 개발자 본인은 광고를 보지 않고 쓰고 싶다는 요구가 있었으나, 별도 build flavor(예: `applicationIdSuffix`로 개인용 패키지 분리)나 코드 분기는 **채택하지 않기로 결정**했습니다. 이유: 코드 분기가 늘어날수록 유지보수 비용이 커지고(버그 수정을 두 곳에 반영해야 함), 정작 실제 결제 플로우를 검증할 방법이 따로 필요해집니다. 대신 **Google Play Console의 License Testing**을 사용합니다:
+> 1. 앱을 Play Console에 등록하고 "광고 제거" IAP 상품을 만든 뒤, Internal Testing 트랙에 한 번 업로드합니다(공개 배포 아님, Play Console에 앱/상품을 인식시키기 위한 최소 조건).
+> 2. 개발자 본인의 Google 계정을 License Tester로 등록합니다.
+> 3. 이후로는 Android Studio에서 평소처럼 빌드 → 기기에 직접 실행(USB/무선 디버깅)하면 됩니다. License Testing은 Play 스토어에서 설치한 빌드나 정식 서명 키로 서명된 빌드를 요구하지 않으므로, `applicationId`만 Play Console에 등록한 것과 동일하면 디버그 서명 빌드에서도 "광고 제거" 버튼이 **실제 과금 없이 테스트 결제**로 동작합니다.
+> 4. 따라서 앱은 **단일 코드베이스, 단일 `applicationId`**로 유지합니다. Play Console 등록/License Tester 등록은 반복 작업이 아니라 최초 1회 설정입니다.
 
 ### Phase 3 — 스토어 심사 통과를 위한 필수 준비물
 
