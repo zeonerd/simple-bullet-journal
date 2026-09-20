@@ -21,17 +21,27 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private var adsReady by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        (application as BulletJournalApp).requestConsentAndInitializeAds(this) {
+            adsReady = true
+        }
+
         setContent {
-            BulletJournalRoot()
+            BulletJournalRoot(adsReady = adsReady)
         }
     }
 }
 
 @Composable
-private fun BulletJournalRoot(settingsViewModel: SettingsViewModel = hiltViewModel()) {
+private fun BulletJournalRoot(
+    adsReady: Boolean,
+    settingsViewModel: SettingsViewModel = hiltViewModel()
+) {
     val preferences by settingsViewModel.userPreferences.collectAsState()
     val systemInDarkTheme = isSystemInDarkTheme()
     val darkTheme = when (preferences.themeMode) {
@@ -40,12 +50,16 @@ private fun BulletJournalRoot(settingsViewModel: SettingsViewModel = hiltViewMod
         ThemeMode.DARK -> true
     }
     var showSettings by remember { mutableStateOf(false) }
+    val showAds = adsReady && !preferences.isAdRemoved
 
     BulletJournalTheme(darkTheme = darkTheme) {
         if (showSettings) {
             SettingsScreen(onBack = { showSettings = false })
         } else {
-            MainScreen(onSettingsClick = { showSettings = true })
+            MainScreen(
+                showAds = showAds,
+                onSettingsClick = { showSettings = true }
+            )
         }
     }
 }

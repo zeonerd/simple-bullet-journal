@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name=".BulletJournalApp"
         android:allowBackup="true"
@@ -8,6 +11,12 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.SimpleBulletJournal">
+
+        <!-- TODO(Phase 1 출시 전): AdMob 콘솔에서 발급받은 실제 App ID로 교체할 것.
+             지금은 Google 공식 테스트 App ID를 사용합니다: https://developers.google.com/admob/android/test-ads -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
 
         <activity
             android:name=".MainActivity"

@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.simple.bulletjournal.data.Task
+import com.simple.bulletjournal.ui.ads.BannerAd
 import com.simple.bulletjournal.ui.theme.LocalNotebookColors
 import com.simple.bulletjournal.viewmodel.TaskViewModel
 import java.time.LocalDate
@@ -82,6 +83,7 @@ private val MarginX = 36.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
+    showAds: Boolean = false,
     onSettingsClick: () -> Unit = {},
     viewModel: TaskViewModel = hiltViewModel()
 ) {
@@ -160,6 +162,11 @@ fun MainScreen(
                     }
                 }
             )
+
+            // ── Banner Ad (광고 제거 미구매 시에만 노출) ──
+            if (showAds) {
+                BannerAd()
+            }
         }
     }
 

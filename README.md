@@ -44,9 +44,14 @@
 6. **설정 화면**
    - 상단 톱니바퀴 아이콘으로 진입
    - 테마 선택(시스템 기본 / 라이트 / 다크) — 즉시 앱 전체에 반영
-   - 광고 제거 진입점(현재는 UI 배선만 완료, 실제 결제는 다음 단계에서 연동 예정)
+   - 광고 제거 버튼(현재는 클릭 시 바로 상태 반영 — 실제 Play Billing 결제 연동은 다음 단계 예정)
 
-7. **홈 화면 위젯 (Glance AppWidget)**
+7. **배너 광고 (AdMob)**
+   - 메인 화면 하단에 배너 광고 노출 (GDPR/EEA 동의 플로우 포함)
+   - 설정에서 "광고 제거"를 누르면 즉시 배너가 사라지고, 앱 재시작 후에도 유지됨
+   - 현재 테스트 광고 ID로 동작 중 — 스토어 출시 전 실제 AdMob ID로 교체 예정
+
+8. **홈 화면 위젯 (Glance AppWidget)**
    - 앱을 켜지 않고도 홈 화면에서 오늘 할 일 확인 및 체크 토글
    - 위젯 상에서 어제 미완료 할 일 즉시 가져오기(`가져오기 ➔`) 기능 지원
    - 중요(★) 할 일 시각적 볼드 강조
@@ -64,6 +69,8 @@
   - `TaskDao` ➔ `TaskRepository` ➔ `TaskViewModel` ➔ Compose UI
   - `MainScreen`/`SettingsScreen` 모두 `hiltViewModel()`로 각각 `TaskViewModel`/`SettingsViewModel`을 생성합니다(`androidx.hilt:hilt-navigation-compose`). 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태로 처리합니다. Glance 위젯(`BulletJournalWidget`, `ToggleTaskAction`, `MigrateTasksAction`)은 여전히 Hilt를 거치지 않고 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`을 직접 생성합니다 — 상세 내용은 [HANDOVER.md](HANDOVER.md) 참고.
 - **의존성 주입(DI)**: Google Hilt 2.60.1
+- **광고**: Google Mobile Ads SDK(`play-services-ads` 23.6.0) + User Messaging Platform(`user-messaging-platform` 3.1.0, GDPR/EEA 동의)
+- **설정 저장**: `androidx.datastore:datastore-preferences`
 - **비동기 처리**: Kotlin Coroutines & Flow (`StateFlow`, `flatMapLatest`)
 - **테스트 프레임워크**: JUnit 4, Kotlinx Coroutines Test, Turbine (`testDebugUnitTest`)
 
@@ -74,8 +81,8 @@
 ```
 app/src/
 ├── main/java/com/simple/bulletjournal/
-│   ├── MainActivity.kt               # 진입점 Activity (Hilt AndroidEntryPoint)
-│   ├── BulletJournalApp.kt           # Application 클래스 (@HiltAndroidApp)
+│   ├── MainActivity.kt               # 진입점 Activity (Hilt AndroidEntryPoint), 화면 전환·테마·광고 초기화 오케스트레이션
+│   ├── BulletJournalApp.kt           # Application 클래스 (@HiltAndroidApp), UMP 동의 + MobileAds 초기화
 │   ├── data/                         # 데이터 계층
 │   │   ├── Task.kt                   # Room Entity (id, date, content, isCompleted, isPriority, isMigrated, orderIndex)
 │   │   ├── TaskDao.kt                # Room DAO (우선순위 및 생성일 기준 정렬 쿼리)
@@ -89,8 +96,10 @@ app/src/
 │   │   ├── DatabaseModule.kt         # AppDatabase, TaskDao, TaskRepository 싱글톤 주입(@Provides)을 한 파일에서 처리
 │   │   └── DataStoreModule.kt        # DataStore<Preferences>, UserPreferencesRepository 싱글톤 주입
 │   ├── ui/                           # UI 계층
-│   │   ├── MainScreen.kt             # 공책 메인 화면 (설정 진입 버튼, 날짜 헤더, 이월 배너, 줄노트, 입력 바)
+│   │   ├── MainScreen.kt             # 공책 메인 화면 (설정 진입 버튼, 날짜 헤더, 이월 배너, 줄노트, 입력 바, 배너 광고)
 │   │   ├── SettingsScreen.kt         # 설정 화면 (테마 선택, 광고 제거)
+│   │   ├── ads/
+│   │   │   └── BannerAd.kt           # AdMob 배너를 AndroidView로 래핑한 컴포저블
 │   │   └── theme/                    # 테마 및 디자인 시스템
 │   │       ├── Color.kt              # 라이트(종이) / 다크(칠판) 컬러 정의
 │   │       ├── Theme.kt              # NotebookColors CompositionLocal Provider

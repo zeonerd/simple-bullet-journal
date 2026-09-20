@@ -97,6 +97,10 @@ dependencies {
     // DataStore (설정값 저장)
     implementation(libs.androidx.datastore.preferences)
 
+    // Ads (AdMob 배너 + GDPR/EEA 동의)
+    implementation(libs.play.services.ads)
+    implementation(libs.user.messaging.platform)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

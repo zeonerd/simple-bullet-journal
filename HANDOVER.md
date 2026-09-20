@@ -170,15 +170,17 @@
 | **설정 화면(SettingsScreen) 신설** | ✅ 완료(2026-09-20): `SettingsScreen` + `SettingsViewModel` 추가, `MainScreen` 상단에 톱니바퀴 아이콘으로 진입. 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태(`mutableStateOf<Boolean>`)로 `MainScreen` ↔ `SettingsScreen` 토글(화면이 2개뿐이라 `NavHost`는 과함). 테마 라디오 3개(시스템/라이트/다크)는 `MainActivity`가 `SettingsViewModel.userPreferences`를 구독해 `BulletJournalTheme(darkTheme=...)`에 실시간 반영. 광고 제거 버튼은 UI/상태 배선만 완료 — 클릭 시 `setAdRemoved(true)`를 **직접** 호출하는 임시 구현이며, Phase 2에서 Play Billing 구매 콜백으로 교체 예정(코드에 `TODO(Phase 2)` 표시). 빌드/단위테스트/실기기 화면 검증(테마 전환, 설정 진입·뒤로가기) 모두 통과. 실기기 검증 과정에서 발견된 별개의 렌더링 버그는 6절 이슈 5 참고. |
 | **DataStore Preferences 도입** | ✅ 완료(2026-09-20): `UserPreferencesRepository`/`DataStoreModule` 추가, 단위 테스트 3개 통과. `isAdRemoved`/`themeMode` 저장 가능. **아직 UI/ViewModel에서 실제로 쓰이진 않음** — 설정 화면에서 주입해 소비하는 게 다음 작업. |
 
-### Phase 1 — 광고 (AdMob 배너)
+### Phase 1 — 광고 (AdMob 배너) — ✅ 완료(2026-09-20, 테스트 광고 ID 기준)
 
-1. `com.google.android.gms:play-services-ads` 의존성 추가, `AndroidManifest`에 AdMob `APPLICATION_ID` meta-data 등록
-2. `INTERNET`, `ACCESS_NETWORK_STATE` 권한 추가 — **이 앱 최초의 네트워크 권한**이며, Data Safety 신고 대상입니다. (현재 `AndroidManifest.xml`에는 아무 권한도 선언되어 있지 않은 완전 오프라인 구조)
-3. Compose 화면 하단에 `AndroidView`로 `AdView`를 래핑해서 배치 (Compose에는 네이티브 배너 컴포넌트가 없음)
-4. **UMP(User Messaging Platform) SDK로 GDPR/EEA 동의 배너** 연동 — AdMob 심사 필수 요건이며, 누락 시 계정 정지 사유가 될 수 있습니다.
-5. `isAdRemoved == true`일 때 배너를 렌더링하지 않도록 조건부 처리 (ViewModel/DataStore 상태 구독)
-6. 개발 중에는 반드시 **테스트 광고 단위 ID**를 사용하고, 실제 광고 단위 ID는 출시 직전에만 교체합니다 (본인이 자기 광고를 클릭하면 계정 정지 위험).
-7. Glance 위젯에는 광고를 넣지 않습니다 (Glance는 배너 SDK 렌더링 불가 — 앱 화면에만 적용).
+1. ✅ `com.google.android.gms:play-services-ads`(23.6.0) + `com.google.android.ump:user-messaging-platform`(3.1.0) 의존성 추가. `AndroidManifest.xml`에 AdMob `APPLICATION_ID` meta-data 등록(현재 Google 공식 테스트 App ID `ca-app-pub-3940256099942544~3347511713` — `TODO(Phase 1 출시 전)` 주석으로 실제 ID 교체 지점 표시).
+2. ✅ `INTERNET`, `ACCESS_NETWORK_STATE` 권한 추가 — **이 앱 최초의 네트워크 권한**이며, Data Safety 신고 대상입니다.
+3. ✅ [`ui/ads/BannerAd.kt`](app/src/main/java/com/simple/bulletjournal/ui/ads/BannerAd.kt): `AndroidView`로 `AdView`를 래핑한 컴포저블. `remember`로 `AdView` 인스턴스를 보관하고 `DisposableEffect`로 `loadAd`/`destroy` 생명주기를 관리합니다. 테스트 배너 광고 단위 ID(`ca-app-pub-3940256099942544/6300978111`) 사용 중 — 실제 ID로 교체할 지점에 `TODO(Phase 1 출시 전)` 주석 표시.
+4. ✅ **UMP(User Messaging Platform) 동의 플로우**: [`BulletJournalApp.kt`](app/src/main/java/com/simple/bulletjournal/BulletJournalApp.kt)의 `requestConsentAndInitializeAds(activity, onReady)`가 `ConsentInformation.requestConsentInfoUpdate` → 필요 시 `loadAndShowConsentFormIfRequired` → 동의 완료(`canRequestAds() == true`) 후에만 `MobileAds.initialize()`를 호출합니다. `MainActivity.onCreate()`에서 이 함수를 호출하고, 완료 콜백에서 `adsReady = true`(Compose `mutableStateOf`)로 배너 노출을 트리거합니다.
+5. ✅ `MainScreen(showAds: Boolean)` 파라미터로 조건부 렌더링: `BulletJournalRoot`(`MainActivity.kt`)에서 `adsReady && !preferences.isAdRemoved`를 계산해 내려줍니다. 설정 화면에서 "광고 제거"를 누르면 `UserPreferencesRepository`의 `isAdRemoved`가 `true`가 되고, 배너가 즉시 사라지며 앱을 완전히 재시작해도 유지됩니다(DataStore 영속성). 실기기(Samsung SM-S711N)에서 테스트 배너 노출 → 광고 제거 클릭 → 배너 즉시 소멸 → 재실행 후에도 유지 전부 확인.
+6. ✅ 개발 중에는 테스트 광고 단위 ID 사용 중 — 실제 광고 단위 ID는 출시 직전에만 교체 예정(본인이 자기 광고를 클릭하면 계정 정지 위험이므로 **절대 미리 교체하지 말 것**).
+7. ✅ Glance 위젯에는 광고를 넣지 않았습니다 (Glance는 배너 SDK 렌더링 불가 — 앱 화면에만 적용).
+
+> **다음 세션 확인 사항**: 실제 AdMob App ID/배너 광고 단위 ID를 받으면 `AndroidManifest.xml`의 `APPLICATION_ID` meta-data와 `BannerAd.kt`의 `TEST_BANNER_AD_UNIT_ID`를 교체할 것(두 곳 모두 `TODO(Phase 1 출시 전)` 주석으로 표시해 둠).
 
 ### Phase 2 — 인앱결제 (광고 제거)
 
