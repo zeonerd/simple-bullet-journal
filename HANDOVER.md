@@ -214,14 +214,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| **개인정보처리방침 URL** | 광고·결제가 있는 앱은 필수입니다. 웹에 게시하고 Play Console 등록정보에 링크합니다. |
-| **Data Safety 설문** | 광고 ID, 기기정보 수집 항목을 AdMob/Billing 기준으로 정확히 기재합니다. |
-| **콘텐츠 등급 설문** | Play Console IARC 설문을 진행합니다. |
-| **타겟 API 레벨 재확인** | 현재 `targetSdk 34` — 제출 시점에 Play가 신규/업데이트 앱에 요구하는 최소 타겟 API 레벨을 다시 확인합니다. |
-| **릴리즈 빌드 난독화** | 현재 `app/build.gradle.kts`의 release 빌드는 `isMinifyEnabled = false`입니다. 스토어 배포 품질이라면 R8을 활성화하고, `proguard-rules.pro`에 Room/Hilt/AdMob/Billing에 필요한 keep 규칙이 빠지지 않았는지 검증합니다. |
-| **크래시 리포팅** | Firebase Crashlytics 등 도입을 검토합니다 (현재 크래시 가시성이 전무합니다). |
-| **스토어 등록 에셋** | 아이콘/스크린샷(폰), 짧은/긴 설명, 512x512 아이콘, 그래픽 배너 이미지를 준비합니다. |
-| **Play App Signing** | 기존 keystore 백업 정책(7절)에 더해 Play App Signing 사용을 권장합니다. |
+| **개인정보처리방침 URL** | ✅ 초안 작성 완료(2026-09-20) — [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) 참고. ⚠️ **아직 웹에 게시되지 않았습니다.** Play Console에 링크하려면 GitHub Pages 등 실제 접근 가능한 URL로 호스팅해야 합니다(사용자 액션 필요). |
+| **Data Safety 설문** | ✅ 답변 초안 작성 완료 — [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)의 "Data Safety 설문 답변 초안" 섹션 참고. Play Console 계정 생성 후 실제 폼에 옮겨 적을 것. |
+| **콘텐츠 등급 설문** | Play Console 계정 필요 — 사용자 액션 대기. 참고용 예상 답변: 폭력/선정성/도박 콘텐츠 없음, 사용자 생성 콘텐츠 없음(개인 할 일 목록은 기기 로컬 저장), 광고 있음 → 전체 이용가(PEGI 3 / Everyone) 등급 예상. |
+| **타겟 API 레벨 재확인** | ✅ 완료(2026-09-20): `targetSdk 36`(Android 16)으로 상향. Play 정책상 2026-08-31부로 신규 앱은 API 36 이상 필수로 확인됨. 실기기(Android 16) 검증 완료 — 6절 참고. |
+| **릴리즈 빌드 난독화** | ✅ 완료(2026-09-20): `isMinifyEnabled = true`, `isShrinkResources = true` 적용. Glance 위젯 ActionCallback(리플렉션 위험)과 Room Entity에 keep 규칙 추가, 실기기에서 위젯 토글까지 전체 플로우 재검증 완료. |
+| **크래시 리포팅** | 미착수. Firebase Crashlytics 도입 검토 — Firebase 프로젝트 생성이 필요합니다(사용자 액션, Play Console과는 별개로 무료 생성 가능). |
+| **스토어 등록 에셋** | ✅ 짧은/긴 설명 초안 작성 완료 — [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) 하단 "스토어 등록 문구 초안" 참고. 스크린샷/그래픽 배너 이미지는 미준비(실제 목업/디자인 작업 필요). |
+| **Play App Signing** | Play Console 앱 등록 시 함께 설정 — 사용자 액션 대기. |
 
 ### Phase 4 — 기존 5절 로드맵과의 우선순위 조정
 

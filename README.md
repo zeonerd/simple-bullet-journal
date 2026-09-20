@@ -154,3 +154,10 @@ keyAlias=bulletjournal
 keyPassword=<비밀번호>
 ```
 *(보안을 위해 `*.jks` 및 `keystore.properties`는 `.gitignore`로 보호됩니다.)*
+
+---
+
+## 📄 스토어 출시 관련 문서
+
+- [PRIVACY_POLICY.md](PRIVACY_POLICY.md) — 개인정보처리방침 초안, Data Safety 설문 답변 초안, 스토어 등록 문구(짧은/긴 설명) 초안
+- [HANDOVER.md](HANDOVER.md) — 아키텍처, known issues, 스토어 출시 로드맵(8절)
