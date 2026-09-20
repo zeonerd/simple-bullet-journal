@@ -220,7 +220,7 @@
 | **타겟 API 레벨 재확인** | ✅ 완료(2026-09-20): `targetSdk 36`(Android 16)으로 상향. Play 정책상 2026-08-31부로 신규 앱은 API 36 이상 필수로 확인됨. 실기기(Android 16) 검증 완료 — 6절 참고. |
 | **릴리즈 빌드 난독화** | ✅ 완료(2026-09-20): `isMinifyEnabled = true`, `isShrinkResources = true` 적용. Glance 위젯 ActionCallback(리플렉션 위험)과 Room Entity에 keep 규칙 추가, 실기기에서 위젯 토글까지 전체 플로우 재검증 완료. |
 | **크래시 리포팅** | 미착수. Firebase Crashlytics 도입 검토 — Firebase 프로젝트 생성이 필요합니다(사용자 액션, Play Console과는 별개로 무료 생성 가능). |
-| **스토어 등록 에셋** | ✅ 짧은/긴 설명 초안 작성 완료 — [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) 하단 "스토어 등록 문구 초안" 참고. 스크린샷/그래픽 배너 이미지는 미준비(실제 목업/디자인 작업 필요). |
+| **스토어 등록 에셋** | ✅ 완료(2026-09-20): 짧은/긴 설명 초안([`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) 하단), 512x512 Hi-res 아이콘([`store_assets/hi_res_icon_512.png`](store_assets/hi_res_icon_512.png)), 실기기 스크린샷 5장([`store_assets/screenshots/`](store_assets/screenshots)) 모두 준비됨. ⚠️ 스크린샷 원본 비율(1080:2340)이 Play 권장 최대 비율(2:1)을 살짝 초과 — 업로드 시 거부되면 크롭 필요(`store_assets/README.md` 참고). 그래픽 배너 이미지(1024x500)는 아직 미준비. |
 | **Play App Signing** | Play Console 앱 등록 시 함께 설정 — 사용자 액션 대기. |
 
 ### Phase 4 — 기존 5절 로드맵과의 우선순위 조정
