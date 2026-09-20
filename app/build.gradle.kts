@@ -18,12 +18,12 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.simple.bulletjournal"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.simple.bulletjournal"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 2
         versionName = "1.1.0-dev"
     }
