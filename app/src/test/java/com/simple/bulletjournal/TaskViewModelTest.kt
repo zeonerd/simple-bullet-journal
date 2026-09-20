@@ -192,11 +192,15 @@ class TaskViewModelTest {
         val yesterday = today.minusDays(1)
 
         // 어제 할 일 2개 추가: 1개는 미완료(중요), 1개는 완료
+        // id는 FakeTaskRepository가 자동 할당하도록 비워둔다(0). 명시적으로 지정하면
+        // migrateYesterdayTasks()가 내부에서 새로 insert하는 태스크의 자동 할당 id와
+        // 우연히 충돌해, updateTask의 id 매칭 로직이 방금 이월된 오늘 태스크까지
+        // 어제 태스크로 덮어써버리는 버그가 있었다(이슈 4).
         fakeRepository.insertTask(
-            Task(id = 1, date = yesterday.format(formatter), content = "어제 미완료 할 일", isCompleted = false, isPriority = true)
+            Task(date = yesterday.format(formatter), content = "어제 미완료 할 일", isCompleted = false, isPriority = true)
         )
         fakeRepository.insertTask(
-            Task(id = 2, date = yesterday.format(formatter), content = "어제 완료된 일", isCompleted = true)
+            Task(date = yesterday.format(formatter), content = "어제 완료된 일", isCompleted = true)
         )
 
         viewModel.tasks.test {

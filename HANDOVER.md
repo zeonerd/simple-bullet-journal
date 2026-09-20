@@ -2,7 +2,35 @@
 
 본 문서는 **Simple Bullet Journal** 프로젝트의 아키텍처 설계 배경, 주요 구현 상세, 그리고 **v1.1+ 개발자가 즉시 작업을 이어갈 수 있도록 필요한 기술적 맥락과 로드맵**을 상세히 기술합니다.
 
-> 2026-09-19 기준으로 실제 소스 코드(`app/src`)를 전수 대조하여 최신화했습니다. 이전 버전 문서에 있던 오래된 서술(DB v3, 별도 `RepositoryModule` 파일 등)은 실제 코드 기준으로 정정했습니다.
+> 2026-09-19~20 기준으로 실제 소스 코드(`app/src`)를 전수 대조하여 최신화했습니다. 이전 버전 문서에 있던 오래된 서술(DB v3, 별도 `RepositoryModule` 파일 등)은 실제 코드 기준으로 정정했습니다.
+
+---
+
+## 🚦 현재 상태 요약 (2026-09-20 기준, 다음 담당자용 TL;DR)
+
+**한 줄 요약**: 앱은 기능적으로 완성되었고 Play 스토어 제출 준비물도 거의 다 갖췄습니다. **남은 건 대부분 사용자(개발자 본인)의 Play Console 계정 생성/결제 액션**이며, 코드 관점에서 막힌 것은 없습니다.
+
+### ✅ 완료된 것
+- 핵심 기능(줄공책 UI, 이월, 중요도, 홈 위젯, 날짜 탐색) — 전부 기존 구현, 이번 세션에서 변경 없음
+- **설정 화면**: 테마 선택(시스템/라이트/다크), 광고 제거 구매/복원 (`SettingsScreen`, `SettingsViewModel`)
+- **AdMob 배너 광고**: 테스트 ID로 완전히 동작 확인, 실제 ID는 문서에 대기 중(8절 Phase 1)
+- **Google Play Billing**: 코드 완성, 상품 ID `remove_ads_sbj` 확정 (8절 Phase 2) — 실결제 검증만 남음
+- **targetSdk 36 상향, R8 난독화 활성화** — 둘 다 실기기 검증 완료
+- **개인정보처리방침 게시**: https://zeonerd.github.io/simple-bullet-journal/privacy-policy.html
+- **스토어 등록 에셋 전부**: 아이콘, 그래픽 배너, 스크린샷 5장, 설명 문구 초안 (`store_assets/`, `PRIVACY_POLICY.md`)
+- **버그 수정 3건 + 테스트 스위트 전체 통과(20/20)**: `BulletJournalApp` 이름 충돌로 인한 빈 화면(이슈 5), 라이트 테마 상태바 아이콘 대비(이슈 6), 단위테스트 ID 충돌로 인한 결정적 실패(이슈 4) — 6절 참고
+
+### ⏸ 사용자(개발자 본인)의 액션이 필요해 멈춰 있는 것
+1. **Play Console 개발자 등록 + 결제** — 이게 있어야 아래 전부가 풀립니다.
+2. Play Console에 앱 업로드(Internal Testing) + `remove_ads_sbj` 비소모성 상품 생성 → Billing 실결제 흐름 검증 가능
+3. 본인 Google 계정을 License Tester로 등록 → 실비용 없이 테스트 결제 가능
+4. AdMob 콘솔에서 발급받은 실제 App ID/광고 단위 ID로 교체(문서에 값은 이미 있음, 8절 Phase 1 참고) — **출시 직전에만** 교체할 것
+5. 콘텐츠 등급 설문, Play App Signing 설정 — Play Console 화면에서 진행
+6. (선택) Firebase Crashlytics 도입 — Firebase 프로젝트 생성 필요
+
+### 다음 담당자가 지금 바로 할 수 있는 것 (계정 없이도 가능)
+- 5절 백로그 과제(수동 순서 변경, TaskType 확장, 백업/복원) 중 아무거나 착수
+- `store_assets/screenshots/`를 실제 한글 샘플 데이터로 재촬영(현재는 영문 placeholder — `store_assets/README.md` 참고)
 
 ---
 
@@ -12,7 +40,7 @@
 * **Data 계층**: `Room` + `TaskRepository` 추상화
   * DAO를 직접 ViewModel에서 참조하지 않고 반드시 `TaskRepository` 인터페이스를 거칩니다.
   * 모든 쿼리는 날짜(`date`, `yyyy-MM-dd`) 기준으로 필터링되며, `isPriority DESC, orderIndex ASC, createdAt ASC` 순으로 정렬됩니다.
-  * **설정값 저장(2026-09-20 추가)**: 구조화 데이터(Room)와 별도로 key-value 설정값은 `androidx.datastore:datastore-preferences` + `UserPreferencesRepository`(`UserPreferencesRepositoryImpl`)로 관리합니다. `UserPreferences(isAdRemoved, themeMode)`를 `Flow`로 노출하며, 8절 로드맵(광고 제거 상태, 테마 선택)의 저장소로 쓰일 예정입니다. 아직 ViewModel/UI 어디에서도 소비하지 않는 상태 — 다음 작업은 이 Repository를 실제로 주입해 쓰는 설정 화면입니다.
+  * **설정값 저장**: 구조화 데이터(Room)와 별도로 key-value 설정값은 `androidx.datastore:datastore-preferences` + `UserPreferencesRepository`(`UserPreferencesRepositoryImpl`)로 관리합니다. `UserPreferences(isAdRemoved, themeMode)`를 `Flow`로 노출하며, `SettingsViewModel`이 구독해 `SettingsScreen`(테마 선택)과 `BillingRepositoryImpl`(구매 완료 시 `isAdRemoved` 갱신)에서 실제로 소비합니다.
 * **DI 계층**: `Google Hilt`
   * `DatabaseModule` 한 파일에서 `AppDatabase`, `TaskDao`, `TaskRepository`(`@Provides`로 `TaskRepositoryImpl` 반환)를 모두 제공합니다. (과거 문서에 있던 별도 `RepositoryModule`/`@Binds` 구조는 실제 코드에 없습니다.)
   * `DataStoreModule`에서 `DataStore<Preferences>`(`preferencesDataStore(name = "user_preferences")`)와 `UserPreferencesRepository`를 싱글톤으로 제공합니다.
@@ -21,7 +49,7 @@
   * 단위 테스트 환경에서 Android Framework 의존성 충돌을 방지하기 위해 `widgetUpdater: suspend () -> Unit` 람다 프로퍼티를 주입 가능하게 설계하였습니다.
 * **Widget 계층**: `Jetpack Glance`
   * 앱이 종료된 상태에서도 원격 뷰를 통해 데이터 조회/수정/이월이 가능하도록 `ToggleTaskAction`, `MigrateTasksAction`을 `ActionCallback`으로 구현했습니다.
-  * ⚠️ 위젯 쪽은 Hilt 그래프를 타지 않습니다. `provideGlance`/`ToggleTaskAction`/`MigrateTasksAction` 각각에서 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`를 직접 `new`합니다. 자세한 내용은 3절과 7절("확인된 이슈") 참고.
+  * ⚠️ 위젯 쪽은 Hilt 그래프를 타지 않습니다. `provideGlance`/`ToggleTaskAction`/`MigrateTasksAction` 각각에서 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`를 직접 `new`합니다. 자세한 내용은 3절과 6절("확인된 이슈") 참고.
 
 ---
 
@@ -66,6 +94,7 @@
 * 단위 테스트는 `app/src/test/java/com/simple/bulletjournal/`에 위치합니다.
 * 테스트 시 Room DB 대신 **`FakeTaskRepository`**를 사용합니다.
 * **주의**: `TaskDao`의 정렬 쿼리(`isPriority DESC, orderIndex ASC, createdAt ASC`)가 변경되면, `FakeTaskRepository`의 `sortedWith` 로직도 반드시 동일하게 맞춰주어야 테스트 일관성이 유지됩니다.
+* **주의**: `FakeTaskRepository.insertTask`는 `id == 0L`일 때만 자동으로 id를 채번합니다(`nextId++`). 테스트에서 사전 데이터를 만들 때 `Task(id = 1, ...)`처럼 id를 직접 지정하면 이 카운터와 충돌해 엉뚱한 레코드가 덮어써질 수 있습니다(6절 이슈 4 참고) — **테스트 데이터의 id는 항상 기본값(0, 자동 할당)으로 둘 것.**
 * 테스트 실행 명령어:
   ```bash
   ./gradlew testDebugUnitTest
@@ -77,7 +106,7 @@
 
 다음 세션 개발자가 우선적으로 구현하기 좋은 추천 백로그입니다.
 
-> ⚠️ **우선순위 조정 (2026-09-20)**: 스토어 출시(8절 참고)가 목표로 확정되면서, 아래 4개 과제 중 **과제 2(테마 수동 선택)**는 8절 Phase 0에서 신설하는 설정 화면과 함께 구현하도록 우선순위를 올렸습니다. 과제 1/3/4는 스토어 1차 출시와 직접 관련이 없으므로 **출시 이후로 순연**을 권장합니다.
+> ⚠️ **우선순위 조정 (2026-09-20)**: 스토어 출시(8절 참고)가 목표로 확정되면서 아래 4개 과제 중 **과제 2(테마 수동 선택)**는 8절 Phase 0의 설정 화면과 함께 구현되어 ✅ **완료**되었습니다. 과제 1/3/4는 스토어 1차 출시와 직접 관련이 없으므로 **출시 이후로 순연**을 권장합니다.
 
 ### 과제 1: 할 일 수동 순서 변경 (Manual Reordering)
 * **현황**: `Task` 엔티티에 이미 `orderIndex: Int` 필드와 쿼리(`orderIndex ASC`)가 준비되어 있습니다.
@@ -85,11 +114,8 @@
   * **방안 A (추천)**: `TaskOnLine` 우측 옵션 메뉴 또는 위/아래 이동 버튼(▲/▼)을 통해 인접 항목과 `orderIndex`를 스왑(`swapOrder(task1, task2)`).
   * **방안 B**: `MainScreen`의 `Column + verticalScroll`을 `LazyColumn` + `reorderable` 제스처 라이브러리로 마이그레이션하여 길게 눌러 드래그 앤 드롭 구현.
 
-### 과제 2: 앱 내 테마 수동 선택 옵션
-* **현황**: 현재는 `isSystemInDarkTheme()`을 기본값으로 하여 OS 시스템 설정만을 따릅니다.
-* **구현 방향**:
-  * `DataStore Preferences`를 추가하여 [시스템 기본 / 라이트 고정 / 다크 고정] 모드를 저장.
-  * 상단 헤더 영역에 테마 토글 버튼 또는 설정 다이얼로그 추가.
+### 과제 2: 앱 내 테마 수동 선택 옵션 — ✅ 2026-09-20 완료
+* **구현 내용**: `DataStore Preferences`(`UserPreferencesRepository.themeMode`)에 [시스템 기본 / 라이트 / 다크]를 저장하고, `SettingsScreen`에 라디오 버튼 3개로 노출. 상태바 아이콘 대비까지 포함해 실기기 검증 완료(6절 이슈 6 참고).
 
 ### 과제 3: 정통 불렛 저널 기호 체계 확장
 * **현황**: 현재는 완료 여부(`isCompleted`)와 중요도(`isPriority`)만 지원.
@@ -124,10 +150,11 @@
 ### 이슈 3: Glance 위젯은 Hilt 그래프를 사용하지 않음
 * **현황**: 3절에서 설명한 대로 위젯 관련 3개 지점 모두 `TaskRepositoryImpl`을 직접 생성합니다. 기능상 문제는 없지만, 향후 Repository에 Hilt로만 주입 가능한 의존성(예: DataStore, 원격 API)이 추가되면 위젯 쪽 코드도 반드시 함께 손봐야 합니다.
 
-### 이슈 4: `migrateYesterdayTasks` 단위 테스트가 간헐적으로 타임아웃 실패함 (2026-09-20 발견)
-* **현황**: `TaskViewModelTest.migrateYesterdayTasks_copiesOnlyUncompletedTasksToCurrentDate` 테스트가 `./gradlew testDebugUnitTest` 실행 시 `app.cash.turbine.TurbineAssertionError: No value produced in 3s`로 실패하는 것을 확인했습니다(19개 중 1개 실패).
-* **비고**: 이번 세션에서 만진 `MainScreen`/Hilt 관련 변경과는 무관한 기존 결함으로 보입니다. `migrateYesterdayTasks()`가 `insertTask`/`updateTask`를 태스크 수만큼 순차 `launch` 내에서 여러 번 호출하는데, `FakeTaskRepository`의 Flow 방출 타이밍과 Turbine의 `awaitItem()` 기대 횟수가 어긋나 있을 가능성이 있습니다.
-* **권장 조치**: 다음 소스 업데이트 시 `FakeTaskRepository.kt`와 해당 테스트의 `awaitItem()` 호출 횟수를 대조해 원인을 확인하고 수정할 것.
+### 이슈 4: `migrateYesterdayTasks` 단위 테스트가 타임아웃 실패함 — ✅ 2026-09-20 해결
+* **증상**: `TaskViewModelTest.migrateYesterdayTasks_copiesOnlyUncompletedTasksToCurrentDate`가 `app.cash.turbine.TurbineAssertionError: No value produced in 3s`로 매번(간헐적이 아니라 결정적으로) 실패했습니다.
+* **근본 원인**: "간헐적"이라고 처음엔 오판했으나, 실제로는 **테스트 코드 자체의 ID 충돌 버그**였습니다. 테스트가 사전 데이터를 넣을 때 `Task(id = 1, ...)`, `Task(id = 2, ...)`로 id를 명시적으로 지정했는데, `FakeTaskRepository`의 자동 증가 카운터(`private var nextId = 1L`)는 이 명시적 id를 전혀 인지하지 못하고 여전히 1부터 시작합니다. `migrateYesterdayTasks()`가 오늘 날짜로 새 태스크를 `insertTask`(id 자동 할당 → 우연히 1)한 직후, 원본 어제 태스크를 `updateTask(task.copy(isMigrated = true))`로 갱신하는데, `FakeTaskRepository.updateTask`는 **id 일치 여부로 교체 대상을 찾기 때문에** 방금 넣은 "오늘" 태스크(id=1)까지 "어제" 태스크 내용으로 덮어써버렸습니다. 결과적으로 "오늘" 목록에는 아무것도 안 남아 `tasks` StateFlow가 갱신되지 않고 Turbine이 영원히 기다리게 됐습니다.
+* **해결**: 테스트의 사전 데이터에서 명시적 `id` 지정을 제거하고 `FakeTaskRepository`의 자동 할당(`id = 0` 기본값)에 맡기도록 수정. 5회 연속 재실행으로 결정적 통과 확인(20/20 전부 통과).
+* **교훈**: Fake/Mock Repository에 자동 증가 ID 카운터가 있다면, 테스트 데이터에 수동으로 id를 지정하지 말 것 — 카운터와 충돌하면 이번처럼 완전히 다른 레코드가 조용히 덮어써지는 사고로 이어질 수 있습니다.
 
 ### 이슈 5: `BulletJournalApp`이라는 이름의 최상위 컴포저블이 `Application` 클래스와 충돌해 화면이 완전히 빈 채로 렌더링됨 — ✅ 2026-09-20 해결
 * **증상**: 앱을 실기기에 설치해서 실행하면 크래시 없이 정상적으로 "Displayed"까지 되지만, 화면에는 배경색만 채워지고 어떤 UI도 그려지지 않았습니다(설정 화면 진입용 톱니바퀴 아이콘도 당연히 안 보였습니다). `uiautomator dump`로 확인해도 `android:id/content` 아래에 자식 뷰가 단 하나도 없었고, `logcat`(main/system/crash 버퍼 전부) 어디에도 예외나 크래시 로그가 없었습니다.
@@ -176,7 +203,7 @@
 | 항목 | 내용 |
 |---|---|
 | **6절 이슈 1 해결** | ✅ 완료(2026-09-20): `MainScreen`이 `hiltViewModel()`을 쓰도록 수정, 빌드/단위테스트/실기기 화면 검증 모두 통과. |
-| **설정 화면(SettingsScreen) 신설** | ✅ 완료(2026-09-20): `SettingsScreen` + `SettingsViewModel` 추가, `MainScreen` 상단에 톱니바퀴 아이콘으로 진입. 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태(`mutableStateOf<Boolean>`)로 `MainScreen` ↔ `SettingsScreen` 토글(화면이 2개뿐이라 `NavHost`는 과함). 테마 라디오 3개(시스템/라이트/다크)는 `MainActivity`가 `SettingsViewModel.userPreferences`를 구독해 `BulletJournalTheme(darkTheme=...)`에 실시간 반영. 광고 제거 버튼은 UI/상태 배선만 완료 — 클릭 시 `setAdRemoved(true)`를 **직접** 호출하는 임시 구현이며, Phase 2에서 Play Billing 구매 콜백으로 교체 예정(코드에 `TODO(Phase 2)` 표시). 빌드/단위테스트/실기기 화면 검증(테마 전환, 설정 진입·뒤로가기) 모두 통과. 실기기 검증 과정에서 발견된 별개의 렌더링 버그는 6절 이슈 5 참고. |
+| **설정 화면(SettingsScreen) 신설** | ✅ 완료(2026-09-20): `SettingsScreen` + `SettingsViewModel` 추가, `MainScreen` 상단에 톱니바퀴 아이콘으로 진입. 화면 전환은 `NavHost` 없이 `MainActivity`의 로컬 상태(`mutableStateOf<Boolean>`)로 `MainScreen` ↔ `SettingsScreen` 토글(화면이 2개뿐이라 `NavHost`는 과함). 테마 라디오 3개(시스템/라이트/다크)는 `MainActivity`가 `SettingsViewModel.userPreferences`를 구독해 `BulletJournalTheme(darkTheme=...)`에 실시간 반영. 광고 제거 버튼은 이후 Phase 2에서 실제 `BillingRepository.purchaseAdRemoval()` 호출로 교체 완료(더 이상 임시 직접 호출 아님 — Phase 2 절 참고). 빌드/단위테스트/실기기 화면 검증(테마 전환, 설정 진입·뒤로가기) 모두 통과. 실기기 검증 과정에서 발견된 별개의 렌더링 버그는 6절 이슈 5 참고. |
 | **DataStore Preferences 도입** | ✅ 완료(2026-09-20): `UserPreferencesRepository`/`DataStoreModule` 추가, 단위 테스트 3개 통과. `isAdRemoved`/`themeMode` 저장 가능. **아직 UI/ViewModel에서 실제로 쓰이진 않음** — 설정 화면에서 주입해 소비하는 게 다음 작업. |
 
 ### Phase 1 — 광고 (AdMob 배너) — ✅ 완료(2026-09-20, 테스트 광고 ID 기준)
@@ -234,5 +261,6 @@
 
 ### Phase 4 — 기존 5절 로드맵과의 우선순위 조정
 
-* **과제 2(테마 수동 선택)**: Phase 0에서 만들 설정 화면과 자연히 묶여서 함께 구현 → 우선순위 상향
+* **과제 2(테마 수동 선택)**: ✅ Phase 0의 설정 화면과 함께 완료됨
 * **과제 1(수동 순서 변경) / 3(TaskType 확장) / 4(백업·복원)**: 스토어 1차 출시와 직접적인 관련이 없으므로 출시 이후로 순연 권장
+* **과제 5(라이트 테마 상태바 대비)**: ✅ 완료됨 (버그 수정 건, 6절 이슈 6 참고)

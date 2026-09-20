@@ -9,13 +9,13 @@
 
 - **버전**: v1.1.0-dev (versionCode 2)
 - **최소 SDK**: Android 8.0 (API 26)
-- **타겟 SDK**: Android 14 (API 34)
+- **타겟 SDK**: Android 16 (API 36)
 - **개발 언어**: Kotlin 2.2.10
 - **UI 툴킷**: Jetpack Compose + Glance (홈 화면 위젯)
 
 ---
 
-## ✨ 핵심 기능 (v1.0.0)
+## ✨ 핵심 기능
 
 1. **빈티지 줄공책 & 다크 칠판 감성 UI**
    - 만년필 질감의 텍스트, 빨간색 여백 마진 라인, 하늘색 가로 공책 줄 배경
@@ -159,5 +159,6 @@ keyPassword=<비밀번호>
 
 ## 📄 스토어 출시 관련 문서
 
-- [PRIVACY_POLICY.md](PRIVACY_POLICY.md) — 개인정보처리방침 초안, Data Safety 설문 답변 초안, 스토어 등록 문구(짧은/긴 설명) 초안
-- [HANDOVER.md](HANDOVER.md) — 아키텍처, known issues, 스토어 출시 로드맵(8절)
+- [HANDOVER.md](HANDOVER.md) — **다음 담당자는 여기부터 읽을 것.** 맨 위 "현재 상태 요약"에 지금 뭐가 끝났고 뭐가 남았는지 한눈에 정리되어 있습니다. 아키텍처, known issues, 스토어 출시 로드맵(8절)도 포함.
+- [PRIVACY_POLICY.md](PRIVACY_POLICY.md) — 개인정보처리방침 원본(게시본: [docs/privacy-policy.html](docs/privacy-policy.html)), Data Safety 설문 답변 초안, 스토어 등록 문구(짧은/긴 설명) 초안
+- [store_assets/](store_assets) — Play Console 등록용 Hi-res 아이콘, 그래픽 배너, 스크린샷 5장, 재생성 스크립트
