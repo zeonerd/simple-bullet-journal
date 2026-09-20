@@ -7,10 +7,10 @@
 ## 📖 프로젝트 개요
 **Simple Bullet Journal**은 복잡한 다이어리 앱 대신, 실제 **줄공책(Lined Notebook)**에 만년필로 기록하듯 간결하고 직관적으로 일정을 관리할 수 있도록 설계된 개인 생산성 앱입니다.
 
-- **버전**: v1.1.0-dev
+- **버전**: v1.1.0-dev (versionCode 2)
 - **최소 SDK**: Android 8.0 (API 26)
 - **타겟 SDK**: Android 14 (API 34)
-- **개발 언어**: Kotlin 2.0.21
+- **개발 언어**: Kotlin 2.2.10
 - **UI 툴킷**: Jetpack Compose + Glance (홈 화면 위젯)
 
 ---
@@ -36,7 +36,12 @@
    - 우측 X 버튼으로 간편한 삭제 및 확인 다이얼로그 제공
    - 키보드가 올라올 때 화면이 밀려나지 않고 부드럽게 크기가 조정되는 안정적인 입력 환경 제공
 
-5. **홈 화면 위젯 (Glance AppWidget)**
+5. **날짜 탐색**
+   - 상단 헤더의 ◀ / ▶ 버튼으로 전날·다음 날 이동
+   - 날짜 텍스트 탭 시 `DatePickerDialog`로 특정 날짜 바로 이동
+   - 오늘이 아닌 날짜를 보고 있을 때 "오늘로 돌아가기" 버튼 노출
+
+6. **홈 화면 위젯 (Glance AppWidget)**
    - 앱을 켜지 않고도 홈 화면에서 오늘 할 일 확인 및 체크 토글
    - 위젯 상에서 어제 미완료 할 일 즉시 가져오기(`가져오기 ➔`) 기능 지원
    - 중요(★) 할 일 시각적 볼드 강조
@@ -48,11 +53,12 @@
 
 - **UI**: Jetpack Compose, Material 3, Material Icons Extended
 - **위젯**: Jetpack Glance (`androidx.glance.appwidget`)
-- **데이터베이스**: Room 2.6.1 with **KSP** (Kotlin Symbol Processing)
+- **데이터베이스**: Room 2.7.0 with **KSP** (Kotlin Symbol Processing)
   - 날짜 컬럼 인덱싱(`@Index(["date"])`)으로 빠른 조회 속도 보장
 - **아키텍처**: MVVM + Clean Repository Pattern
   - `TaskDao` ➔ `TaskRepository` ➔ `TaskViewModel` ➔ Compose UI
-- **의존성 주입(DI)**: Google Hilt 2.51.1
+  - `MainScreen`은 `hiltViewModel()`로 `TaskViewModel`을 생성합니다(`androidx.hilt:hilt-navigation-compose`). Glance 위젯(`BulletJournalWidget`, `ToggleTaskAction`, `MigrateTasksAction`)은 여전히 Hilt를 거치지 않고 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`을 직접 생성합니다 — 상세 내용은 [HANDOVER.md](HANDOVER.md) 참고.
+- **의존성 주입(DI)**: Google Hilt 2.60.1
 - **비동기 처리**: Kotlin Coroutines & Flow (`StateFlow`, `flatMapLatest`)
 - **테스트 프레임워크**: JUnit 4, Kotlinx Coroutines Test, Turbine (`testDebugUnitTest`)
 
@@ -66,14 +72,13 @@ app/src/
 │   ├── MainActivity.kt               # 진입점 Activity (Hilt AndroidEntryPoint)
 │   ├── BulletJournalApp.kt           # Application 클래스 (@HiltAndroidApp)
 │   ├── data/                         # 데이터 계층
-│   │   ├── Task.kt                   # Room Entity (id, date, content, isCompleted, isPriority, orderIndex)
+│   │   ├── Task.kt                   # Room Entity (id, date, content, isCompleted, isPriority, isMigrated, orderIndex)
 │   │   ├── TaskDao.kt                # Room DAO (우선순위 및 생성일 기준 정렬 쿼리)
-│   │   ├── AppDatabase.kt            # Room Database (v3)
+│   │   ├── AppDatabase.kt            # Room Database (v4, Migration(3,4)로 isMigrated 컬럼 추가)
 │   │   ├── TaskRepository.kt         # Repository 인터페이스 추상화
 │   │   └── TaskRepositoryImpl.kt     # Repository 구현체
 │   ├── di/                           # Hilt 의존성 주입 모듈
-│   │   ├── DatabaseModule.kt         # AppDatabase & TaskDao 싱글톤 주입
-│   │   └── RepositoryModule.kt       # TaskRepository 바인딩
+│   │   └── DatabaseModule.kt         # AppDatabase, TaskDao, TaskRepository 싱글톤 주입(@Provides)을 한 파일에서 처리
 │   ├── ui/                           # UI 계층
 │   │   ├── MainScreen.kt             # 공책 메인 화면 (날짜 헤더, 이월 배너, 줄노트, 입력 바)
 │   │   └── theme/                    # 테마 및 디자인 시스템

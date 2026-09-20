@@ -62,7 +62,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.simple.bulletjournal.data.Task
 import com.simple.bulletjournal.ui.theme.LocalNotebookColors
 import com.simple.bulletjournal.viewmodel.TaskViewModel
@@ -80,7 +80,7 @@ private val MarginX = 36.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: TaskViewModel = viewModel()) {
+fun MainScreen(viewModel: TaskViewModel = hiltViewModel()) {
     val colors = LocalNotebookColors.current
     val selectedDate by viewModel.selectedDate.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
