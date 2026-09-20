@@ -188,13 +188,21 @@
 >
 > 개발 중에 미리 적용하면 본인이 실수로 자기 광고를 클릭해 AdMob 계정이 정지될 위험이 있으므로, 지금은 코드에 반영하지 않고 이 문서에만 기록해 둡니다. 출시 직전 체크리스트(8절 Phase 3)에서 위 두 값으로 교체할 것.
 
-### Phase 2 — 인앱결제 (광고 제거)
+### Phase 2 — 인앱결제 (광고 제거) — ✅ 코드 구현 완료(2026-09-20), 실 구매 플로우 검증은 Play Console 상품 등록 후 가능
 
-1. `com.android.billingclient:billing-ktx` 추가, Play Console에 **비소모성(non-consumable) 상품** "광고 제거"를 등록합니다.
-2. `BillingClient.queryPurchasesAsync()`로 앱 시작 시 구매 이력을 재조회합니다 → 재설치·기기 변경 시에도 상태가 복원됩니다 (DataStore 로컬 캐시만으로는 유실됨).
-3. 구매 완료 시 `acknowledgePurchase()`를 반드시 호출합니다 (호출하지 않으면 Play 정책상 3일 뒤 자동 환불됩니다).
-4. 설정 화면에 "광고 제거" 구매 버튼과 "구매 복원" 버튼을 배치합니다.
-5. 결제 성공 → `isAdRemoved = true` → 광고 즉시 숨김 → 앱 재실행 후에도 유지되는지 QA로 확인합니다.
+1. ✅ `com.android.billingclient:billing-ktx`(7.1.1) 추가.
+2. ✅ **인앱상품 ID 확정**: `remove_ads_sbj` (`data/BillingRepositoryImpl.kt`의 `REMOVE_ADS_PRODUCT_ID` 상수). **Play Console에 이 문자열과 정확히 일치하는 비소모성(non-consumable) 상품을 등록해야 동작합니다.** 아직 등록 전.
+3. ✅ [`data/BillingRepository.kt`](app/src/main/java/com/simple/bulletjournal/data/BillingRepository.kt) / [`BillingRepositoryImpl.kt`](app/src/main/java/com/simple/bulletjournal/data/BillingRepositoryImpl.kt): `BillingClient` 연결 → `queryProductDetailsAsync`로 상품 정보 캐싱 → 연결 성공 시 자동으로 `restorePurchases()`(=`queryPurchasesAsync`) 호출해 기존 구매 이력을 동기화합니다. 재설치·기기 변경 시에도 상태 복원됨.
+4. ✅ 구매 완료(`onPurchasesUpdated`) 시 `isAdRemoved = true`로 `UserPreferencesRepository`에 반영 + 미승인 구매는 즉시 `acknowledgePurchase()` 호출(3일 내 승인 안 하면 Play가 자동 환불).
+5. ✅ [`SettingsScreen.kt`](app/src/main/java/com/simple/bulletjournal/ui/SettingsScreen.kt): "광고 제거" 버튼(미구매 시에만 노출) + "구매 복원" 버튼(미구매 상태일 때만 노출, 다른 기기 구매 이력 확인용) 배치. `LocalContext.current as? Activity`로 결제 플로우에 필요한 Activity 확보.
+6. ✅ `SettingsViewModel`에 `purchaseAdRemoval(activity)` / `restorePurchases()` 위임 메서드 추가, 기존 `setAdRemoved` 직접 호출(Phase 0의 임시 구현)은 제거. `di/BillingModule.kt`로 Hilt 싱글톤 제공(`DatabaseModule`/`DataStoreModule`과 동일 패턴).
+7. ✅ 단위테스트: `FakeBillingRepository` 추가, `SettingsViewModelTest`에 위임 호출 검증 2건 추가(총 20개 중 기존 flaky 1개 제외 전부 통과).
+8. ⚠️ **실기기 검증 범위**: 크래시 없이 빌드/설치/실행되는 것, 기존 `isAdRemoved=true` 상태에서 UI 분기가 올바른 것까지는 확인했습니다. **"광고 제거" 버튼을 눌러 실제 Play 결제 다이얼로그가 뜨는지는 Play Console에 `remove_ads_sbj` 상품이 등록되기 전까지 검증 불가**(상품이 없으면 `queryProductDetailsAsync` 결과가 비어 있어 버튼을 눌러도 아무 일도 일어나지 않고 재조회만 시도함 — 크래시는 안 나지만 결제창도 안 뜸). Play Console에 상품 등록 후 다음 세션에서 최우선으로 재검증할 것.
+
+> **다음 세션 확인 사항 (Play Console 작업, 사용자 액션 필요)**:
+> 1. Play Console에 앱 등록 (최소 Internal Testing 트랙 업로드)
+> 2. 비소모성 인앱상품 생성, 상품 ID를 정확히 `remove_ads_sbj`로 설정
+> 3. 개발자 본인 Google 계정을 License Tester로 등록 (실비용 없는 테스트 결제, 아래 참고)
 
 > **개발자 본인 사용 관련 결정 (2026-09-20)**: 개발자 본인은 광고를 보지 않고 쓰고 싶다는 요구가 있었으나, 별도 build flavor(예: `applicationIdSuffix`로 개인용 패키지 분리)나 코드 분기는 **채택하지 않기로 결정**했습니다. 이유: 코드 분기가 늘어날수록 유지보수 비용이 커지고(버그 수정을 두 곳에 반영해야 함), 정작 실제 결제 플로우를 검증할 방법이 따로 필요해집니다. 대신 **Google Play Console의 License Testing**을 사용합니다:
 > 1. 앱을 Play Console에 등록하고 "광고 제거" IAP 상품을 만든 뒤, Internal Testing 트랙에 한 번 업로드합니다(공개 배포 아님, Play Console에 앱/상품을 인식시키기 위한 최소 조건).

@@ -1,5 +1,6 @@
 package com.simple.bulletjournal
 
+import android.app.Activity
 import app.cash.turbine.test
 import com.simple.bulletjournal.data.ThemeMode
 import com.simple.bulletjournal.viewmodel.SettingsViewModel
@@ -7,7 +8,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -19,12 +19,17 @@ class SettingsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private lateinit var fakeRepository: FakeUserPreferencesRepository
+    private lateinit var fakeBillingRepository: FakeBillingRepository
     private lateinit var viewModel: SettingsViewModel
 
     @Before
     fun setup() {
         fakeRepository = FakeUserPreferencesRepository()
-        viewModel = SettingsViewModel(repository = fakeRepository)
+        fakeBillingRepository = FakeBillingRepository()
+        viewModel = SettingsViewModel(
+            repository = fakeRepository,
+            billingRepository = fakeBillingRepository
+        )
     }
 
     @Test
@@ -47,12 +52,18 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun setAdRemoved_updatesState() = runTest {
-        viewModel.userPreferences.test {
-            assertFalse(awaitItem().isAdRemoved)
+    fun purchaseAdRemoval_delegatesToBillingRepository() {
+        viewModel.purchaseAdRemoval(TestActivity())
 
-            viewModel.setAdRemoved(true)
-            assertTrue(awaitItem().isAdRemoved)
-        }
+        assertEquals(1, fakeBillingRepository.purchaseAdRemovalCallCount)
     }
+
+    @Test
+    fun restorePurchases_delegatesToBillingRepository() {
+        viewModel.restorePurchases()
+
+        assertEquals(1, fakeBillingRepository.restorePurchasesCallCount)
+    }
+
+    private class TestActivity : Activity()
 }

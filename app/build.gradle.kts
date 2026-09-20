@@ -101,6 +101,9 @@ dependencies {
     implementation(libs.play.services.ads)
     implementation(libs.user.messaging.platform)
 
+    // Billing (인앱결제 - 광고 제거)
+    implementation(libs.billing.ktx)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

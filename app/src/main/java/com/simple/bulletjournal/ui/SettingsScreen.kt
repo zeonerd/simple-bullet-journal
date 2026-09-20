@@ -1,5 +1,6 @@
 package com.simple.bulletjournal.ui
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.simple.bulletjournal.data.ThemeMode
@@ -37,6 +39,7 @@ fun SettingsScreen(
 ) {
     val colors = LocalNotebookColors.current
     val preferences by viewModel.userPreferences.collectAsState()
+    val activity = LocalContext.current as? Activity
 
     Scaffold(containerColor = colors.paper) { padding ->
         Column(
@@ -101,8 +104,21 @@ fun SettingsScreen(
                     color = colors.text
                 )
                 if (!preferences.isAdRemoved) {
-                    TextButton(onClick = { viewModel.setAdRemoved(true) }) {
+                    TextButton(onClick = { activity?.let(viewModel::purchaseAdRemoval) }) {
                         Text("광고 제거", color = colors.marginLine)
+                    }
+                }
+            }
+
+            if (!preferences.isAdRemoved) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = { viewModel.restorePurchases() }) {
+                        Text("구매 복원", color = colors.subtleText)
                     }
                 }
             }

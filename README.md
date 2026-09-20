@@ -44,7 +44,7 @@
 6. **설정 화면**
    - 상단 톱니바퀴 아이콘으로 진입
    - 테마 선택(시스템 기본 / 라이트 / 다크) — 즉시 앱 전체에 반영
-   - 광고 제거 버튼(현재는 클릭 시 바로 상태 반영 — 실제 Play Billing 결제 연동은 다음 단계 예정)
+   - 광고 제거 구매 버튼 + 구매 복원 버튼 (Google Play Billing 연동, Play Console 상품 등록 후 실결제 가능)
 
 7. **배너 광고 (AdMob)**
    - 메인 화면 하단에 배너 광고 노출 (GDPR/EEA 동의 플로우 포함)
@@ -71,6 +71,7 @@
 - **의존성 주입(DI)**: Google Hilt 2.60.1
 - **광고**: Google Mobile Ads SDK(`play-services-ads` 23.6.0) + User Messaging Platform(`user-messaging-platform` 3.1.0, GDPR/EEA 동의)
 - **설정 저장**: `androidx.datastore:datastore-preferences`
+- **인앱결제**: Google Play Billing Library(`billing-ktx` 7.1.1) — 비소모성 상품 `remove_ads_sbj`
 - **비동기 처리**: Kotlin Coroutines & Flow (`StateFlow`, `flatMapLatest`)
 - **테스트 프레임워크**: JUnit 4, Kotlinx Coroutines Test, Turbine (`testDebugUnitTest`)
 
@@ -91,13 +92,16 @@ app/src/
 │   │   ├── TaskRepositoryImpl.kt     # Repository 구현체
 │   │   ├── UserPreferences.kt        # 설정값 모델 (isAdRemoved, themeMode)
 │   │   ├── UserPreferencesRepository.kt      # 설정값 Repository 인터페이스
-│   │   └── UserPreferencesRepositoryImpl.kt  # DataStore Preferences 기반 구현체
+│   │   ├── UserPreferencesRepositoryImpl.kt  # DataStore Preferences 기반 구현체
+│   │   ├── BillingRepository.kt      # 인앱결제 Repository 인터페이스
+│   │   └── BillingRepositoryImpl.kt  # Play BillingClient 래핑, 상품 ID: remove_ads_sbj
 │   ├── di/                           # Hilt 의존성 주입 모듈
 │   │   ├── DatabaseModule.kt         # AppDatabase, TaskDao, TaskRepository 싱글톤 주입(@Provides)을 한 파일에서 처리
-│   │   └── DataStoreModule.kt        # DataStore<Preferences>, UserPreferencesRepository 싱글톤 주입
+│   │   ├── DataStoreModule.kt        # DataStore<Preferences>, UserPreferencesRepository 싱글톤 주입
+│   │   └── BillingModule.kt          # BillingRepository 싱글톤 주입
 │   ├── ui/                           # UI 계층
 │   │   ├── MainScreen.kt             # 공책 메인 화면 (설정 진입 버튼, 날짜 헤더, 이월 배너, 줄노트, 입력 바, 배너 광고)
-│   │   ├── SettingsScreen.kt         # 설정 화면 (테마 선택, 광고 제거)
+│   │   ├── SettingsScreen.kt         # 설정 화면 (테마 선택, 광고 제거 구매/복원)
 │   │   ├── ads/
 │   │   │   └── BannerAd.kt           # AdMob 배너를 AndroidView로 래핑한 컴포저블
 │   │   └── theme/                    # 테마 및 디자인 시스템
@@ -106,13 +110,14 @@ app/src/
 │   │       └── Type.kt               # 타이포그래피
 │   ├── viewmodel/                    # 프레젠테이션 계층
 │   │   ├── TaskViewModel.kt          # 날짜 선택, 태스크 CRUD, 이월 및 위젯 갱신
-│   │   └── SettingsViewModel.kt      # 테마/광고제거 설정값 읽기·쓰기
+│   │   └── SettingsViewModel.kt      # 테마 변경, 광고 제거 구매/복원 위임
 │   └── widget/                       # Glance 홈 화면 위젯
 │       ├── BulletJournalWidget.kt    # 위젯 UI, ToggleTaskAction, MigrateTasksAction
 │       └── WidgetReceiver.kt         # 위젯 리시버
 └── test/java/com/simple/bulletjournal/
     ├── FakeTaskRepository.kt              # 인메모리 Fake Repository (정렬 로직 일치화)
     ├── FakeUserPreferencesRepository.kt   # 인메모리 Fake 설정값 Repository
+    ├── FakeBillingRepository.kt           # 인앱결제 호출 위임 검증용 Fake
     ├── MainDispatcherRule.kt              # Coroutine TestRule (UnconfinedTestDispatcher)
     ├── TaskViewModelTest.kt               # TaskViewModel 단위 테스트 스위트
     ├── SettingsViewModelTest.kt           # SettingsViewModel 단위 테스트 스위트
