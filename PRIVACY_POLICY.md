@@ -1,8 +1,8 @@
 # 개인정보처리방침 (Privacy Policy) — Simple Bullet Journal
 
-> ⚠️ 이 문서는 초안입니다. Play Console에 링크하려면 실제 접근 가능한 URL(예: GitHub Pages)로 게시해야 하며, 아래 `[ ]`로 표시된 부분(개발자 연락처 등)을 채워 넣어야 합니다.
+> ✅ 게시 완료: https://zeonerd.github.io/simple-bullet-journal/privacy-policy.html — Play Console 등록 시 이 URL을 그대로 사용하면 됩니다. 이 `.md` 파일은 원본 소스이며, 실제 게시본은 [`docs/privacy-policy.html`](docs/privacy-policy.html)입니다. 내용을 수정할 땐 두 파일을 함께 갱신하세요.
 
-**시행일**: (게시일 입력)
+**시행일**: 2026-09-20
 **최종 수정일**: 2026-09-20
 
 Simple Bullet Journal("본 앱")은 개인 정보 보호를 중요하게 생각합니다. 본 방침은 본 앱이 어떤 정보를 수집·이용·저장하는지 설명합니다.
@@ -46,7 +46,7 @@ Simple Bullet Journal("본 앱")은 개인 정보 보호를 중요하게 생각�
 
 ## 7. 문의
 
-개인정보 관련 문의: [개발자 이메일 주소를 입력하세요]
+개인정보 관련 문의: zeonerd@proton.me
 
 ---
 
@@ -103,4 +103,7 @@ Journal과 함께 하루를 기록해보세요.
 ```
 
 ### 개인정보처리방침 URL 필드
-Play Console 등록정보에는 이 문서(`PRIVACY_POLICY.md`)를 GitHub Pages 등으로 게시한 뒤 그 URL을 입력합니다.
+Play Console 등록정보에는 아래 게시된 URL을 그대로 입력합니다.
+```
+https://zeonerd.github.io/simple-bullet-journal/privacy-policy.html
+```

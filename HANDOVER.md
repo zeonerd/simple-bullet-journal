@@ -214,7 +214,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| **개인정보처리방침 URL** | ✅ 초안 작성 완료(2026-09-20) — [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) 참고. ⚠️ **아직 웹에 게시되지 않았습니다.** Play Console에 링크하려면 GitHub Pages 등 실제 접근 가능한 URL로 호스팅해야 합니다(사용자 액션 필요). |
+| **개인정보처리방침 URL** | ✅ 완료(2026-09-20): GitHub Pages로 게시됨 — https://zeonerd.github.io/simple-bullet-journal/privacy-policy.html (소스: [`docs/privacy-policy.html`](docs/privacy-policy.html), 원본 마크다운: [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)). Play Console 등록 시 이 URL을 그대로 입력하면 됩니다. |
 | **Data Safety 설문** | ✅ 답변 초안 작성 완료 — [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)의 "Data Safety 설문 답변 초안" 섹션 참고. Play Console 계정 생성 후 실제 폼에 옮겨 적을 것. |
 | **콘텐츠 등급 설문** | Play Console 계정 필요 — 사용자 액션 대기. 참고용 예상 답변: 폭력/선정성/도박 콘텐츠 없음, 사용자 생성 콘텐츠 없음(개인 할 일 목록은 기기 로컬 저장), 광고 있음 → 전체 이용가(PEGI 3 / Everyone) 등급 예상. |
 | **타겟 API 레벨 재확인** | ✅ 완료(2026-09-20): `targetSdk 36`(Android 16)으로 상향. Play 정책상 2026-08-31부로 신규 앱은 API 36 이상 필수로 확인됨. 실기기(Android 16) 검증 완료 — 6절 참고. |
