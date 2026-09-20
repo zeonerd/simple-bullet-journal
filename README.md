@@ -76,9 +76,13 @@ app/src/
 │   │   ├── TaskDao.kt                # Room DAO (우선순위 및 생성일 기준 정렬 쿼리)
 │   │   ├── AppDatabase.kt            # Room Database (v4, Migration(3,4)로 isMigrated 컬럼 추가)
 │   │   ├── TaskRepository.kt         # Repository 인터페이스 추상화
-│   │   └── TaskRepositoryImpl.kt     # Repository 구현체
+│   │   ├── TaskRepositoryImpl.kt     # Repository 구현체
+│   │   ├── UserPreferences.kt        # 설정값 모델 (isAdRemoved, themeMode)
+│   │   ├── UserPreferencesRepository.kt      # 설정값 Repository 인터페이스
+│   │   └── UserPreferencesRepositoryImpl.kt  # DataStore Preferences 기반 구현체
 │   ├── di/                           # Hilt 의존성 주입 모듈
-│   │   └── DatabaseModule.kt         # AppDatabase, TaskDao, TaskRepository 싱글톤 주입(@Provides)을 한 파일에서 처리
+│   │   ├── DatabaseModule.kt         # AppDatabase, TaskDao, TaskRepository 싱글톤 주입(@Provides)을 한 파일에서 처리
+│   │   └── DataStoreModule.kt        # DataStore<Preferences>, UserPreferencesRepository 싱글톤 주입
 │   ├── ui/                           # UI 계층
 │   │   ├── MainScreen.kt             # 공책 메인 화면 (날짜 헤더, 이월 배너, 줄노트, 입력 바)
 │   │   └── theme/                    # 테마 및 디자인 시스템
@@ -91,9 +95,10 @@ app/src/
 │       ├── BulletJournalWidget.kt    # 위젯 UI, ToggleTaskAction, MigrateTasksAction
 │       └── WidgetReceiver.kt         # 위젯 리시버
 └── test/java/com/simple/bulletjournal/
-    ├── FakeTaskRepository.kt         # 인메모리 Fake Repository (정렬 로직 일치화)
-    ├── MainDispatcherRule.kt         # Coroutine TestRule (UnconfinedTestDispatcher)
-    └── TaskViewModelTest.kt          # ViewModel 단위 테스트 스위트
+    ├── FakeTaskRepository.kt              # 인메모리 Fake Repository (정렬 로직 일치화)
+    ├── MainDispatcherRule.kt              # Coroutine TestRule (UnconfinedTestDispatcher)
+    ├── TaskViewModelTest.kt               # ViewModel 단위 테스트 스위트
+    └── UserPreferencesRepositoryTest.kt   # DataStore 기반 설정값 저장/조회 테스트
 ```
 
 ---

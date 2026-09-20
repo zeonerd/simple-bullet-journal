@@ -12,8 +12,10 @@
 * **Data 계층**: `Room` + `TaskRepository` 추상화
   * DAO를 직접 ViewModel에서 참조하지 않고 반드시 `TaskRepository` 인터페이스를 거칩니다.
   * 모든 쿼리는 날짜(`date`, `yyyy-MM-dd`) 기준으로 필터링되며, `isPriority DESC, orderIndex ASC, createdAt ASC` 순으로 정렬됩니다.
+  * **설정값 저장(2026-09-20 추가)**: 구조화 데이터(Room)와 별도로 key-value 설정값은 `androidx.datastore:datastore-preferences` + `UserPreferencesRepository`(`UserPreferencesRepositoryImpl`)로 관리합니다. `UserPreferences(isAdRemoved, themeMode)`를 `Flow`로 노출하며, 8절 로드맵(광고 제거 상태, 테마 선택)의 저장소로 쓰일 예정입니다. 아직 ViewModel/UI 어디에서도 소비하지 않는 상태 — 다음 작업은 이 Repository를 실제로 주입해 쓰는 설정 화면입니다.
 * **DI 계층**: `Google Hilt`
   * `DatabaseModule` 한 파일에서 `AppDatabase`, `TaskDao`, `TaskRepository`(`@Provides`로 `TaskRepositoryImpl` 반환)를 모두 제공합니다. (과거 문서에 있던 별도 `RepositoryModule`/`@Binds` 구조는 실제 코드에 없습니다.)
+  * `DataStoreModule`에서 `DataStore<Preferences>`(`preferencesDataStore(name = "user_preferences")`)와 `UserPreferencesRepository`를 싱글톤으로 제공합니다.
 * **Presentation 계층**: `Jetpack Compose` + `TaskViewModel`
   * `TaskViewModel`은 `@HiltViewModel` + `AndroidViewModel(application)`을 상속하며, 위젯 갱신을 위해 `GlanceAppWidgetManager`/`updateAll`을 호출합니다.
   * 단위 테스트 환경에서 Android Framework 의존성 충돌을 방지하기 위해 `widgetUpdater: suspend () -> Unit` 람다 프로퍼티를 주입 가능하게 설계하였습니다.
@@ -159,7 +161,7 @@
 |---|---|
 | **6절 이슈 1 해결** | ✅ 완료(2026-09-20): `MainScreen`이 `hiltViewModel()`을 쓰도록 수정, 빌드/단위테스트 통과 확인. **다만 실기기/에뮬레이터 화면 검증은 아직 남아 있음** — 다음 세션에서 최우선 확인. |
 | **설정 화면(SettingsScreen) 신설** | "광고 제거" 구매 버튼과 (5절 과제 2였던) 테마 선택을 배치할 화면이 필요합니다. 현재는 `MainScreen` 하나뿐입니다. |
-| **DataStore Preferences 도입** | `isAdRemoved` 상태와 테마 설정을 저장할 key-value 저장소. 현재 Room(구조화 데이터)만 있고 별도 설정 저장 수단이 없습니다. |
+| **DataStore Preferences 도입** | ✅ 완료(2026-09-20): `UserPreferencesRepository`/`DataStoreModule` 추가, 단위 테스트 3개 통과. `isAdRemoved`/`themeMode` 저장 가능. **아직 UI/ViewModel에서 실제로 쓰이진 않음** — 설정 화면에서 주입해 소비하는 게 다음 작업. |
 
 ### Phase 1 — 광고 (AdMob 배너)
 
