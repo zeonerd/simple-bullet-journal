@@ -3,6 +3,12 @@
 ## hi_res_icon_512.png
 Play Console 등록정보의 "Hi-res icon" 필드용. 512x512, 32비트 PNG(알파 포함). 앱의 실제 adaptive icon(`ic_launcher_foreground.xml` + `ic_launcher_background.xml`)과 동일한 벡터 좌표를 그대로 스케일링해 렌더링했습니다.
 
+## feature_graphic_1024x500.png
+Play Console 등록정보의 "그래픽 이미지(Feature graphic)" 필드용. 1024x500, 24비트 PNG(알파 없음). 앱의 다크 칠판 테마 색상(노트 줄, 빨간 여백선, 분필 불렛 아이콘)을 그대로 재사용해 제작했습니다.
+
+## scripts/
+`hi_res_icon_512.png`와 `feature_graphic_1024x500.png`를 생성한 Python(Pillow) 스크립트 원본입니다. 텍스트나 색상, 레이아웃을 바꾸고 싶으면 스크립트를 수정해 `python3 store_assets/scripts/render_icon.py` / `render_banner.py`로 재생성하면 됩니다(각 스크립트 안에서 `../../`로 결과물을 저장하므로 `store_assets/scripts/` 디렉터리에서 실행할 것).
+
 ## screenshots/
 실기기(Samsung SM-S711N, 1080x2340)에서 촬영한 실제 스크린샷입니다.
 
