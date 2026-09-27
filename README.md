@@ -167,4 +167,5 @@ keyPassword=<비밀번호>
 
 - [HANDOVER.md](HANDOVER.md) — **다음 담당자는 여기부터 읽을 것.** 맨 위 "현재 상태 요약"에 지금 뭐가 끝났고 뭐가 남았는지 한눈에 정리되어 있습니다. 아키텍처, known issues, 스토어 출시 로드맵(8절)도 포함.
 - [PRIVACY_POLICY.md](PRIVACY_POLICY.md) — 개인정보처리방침 원본(게시본: [docs/privacy-policy.html](docs/privacy-policy.html)), Data Safety 설문 답변 초안, 스토어 등록 문구(짧은/긴 설명) 초안
-- [store_assets/](store_assets) — Play Console 등록용 Hi-res 아이콘, 그래픽 배너, 스크린샷 5장, 재생성 스크립트
+- [store_assets/](store_assets) — Play Console 등록용 Hi-res 아이콘, 그래픽 배너, 스크린샷(업로드용은 `screenshots_play/` 4장), 재생성 스크립트
+- Play Console 등록 절차: [HANDOVER.md](HANDOVER.md) 11절
