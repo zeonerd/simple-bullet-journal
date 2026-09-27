@@ -46,7 +46,7 @@ class JournalBackupTest {
     @Test
     fun decode_missingOptionalFields_useDefaults() {
         val decoded = JournalBackup.decode(
-            """{"app":"simple-bullet-journal","formatVersion":1,"tasks":[{"date":"2026-09-27","content":"최소 필드"}]}"""
+            """{"app":"todaynote","formatVersion":1,"tasks":[{"date":"2026-09-27","content":"최소 필드"}]}"""
         )
         assertEquals(listOf(Task(date = "2026-09-27", content = "최소 필드", createdAt = 0L)), decoded.tasks)
         assertNull(decoded.exportedAt)
@@ -55,13 +55,25 @@ class JournalBackupTest {
     @Test
     fun decode_rejectsOtherApps_futureVersions_andBrokenFiles() {
         assertInvalid("""{"app":"other-app","formatVersion":1,"tasks":[]}""")
-        assertInvalid("""{"app":"simple-bullet-journal","formatVersion":99,"tasks":[]}""")
-        assertInvalid("""{"app":"simple-bullet-journal","tasks":[]}""")
-        assertInvalid("""{"app":"simple-bullet-journal","formatVersion":1}""")
-        assertInvalid("""{"app":"simple-bullet-journal","formatVersion":1,"tasks":[{"date":"2026-09-27"}]}""")
-        assertInvalid("""{"app":"simple-bullet-journal","formatVersion":1,"tasks":[{"date":"27/09/2026","content":"x"}]}""")
+        assertInvalid("""{"app":"todaynote","formatVersion":99,"tasks":[]}""")
+        assertInvalid("""{"app":"todaynote","tasks":[]}""")
+        assertInvalid("""{"app":"todaynote","formatVersion":1}""")
+        assertInvalid("""{"app":"todaynote","formatVersion":1,"tasks":[{"date":"2026-09-27"}]}""")
+        assertInvalid("""{"app":"todaynote","formatVersion":1,"tasks":[{"date":"27/09/2026","content":"x"}]}""")
         assertInvalid("not json at all")
         assertInvalid("")
+    }
+
+    @Test
+    fun decode_acceptsLegacyBackupsMadeBeforeRename() {
+        // 앱 이름 변경(불렛 저널 → 오늘노트) 전에 만든 백업 파일도 복원돼야 한다
+        val legacy = """{"app":"simple-bullet-journal","formatVersion":1,"tasks":[{"date":"2026-09-27","content":"옛 백업"}]}"""
+        assertEquals("옛 백업", JournalBackup.decode(legacy).tasks.single().content)
+    }
+
+    @Test
+    fun encode_writesNewAppId() {
+        assertTrue(JournalBackup.encode(emptyList(), exportedAt).contains("\"app\": \"todaynote\""))
     }
 
     @Test

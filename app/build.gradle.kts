@@ -21,7 +21,8 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.simple.bulletjournal"
+        // 스토어 공개 식별자(첫 업로드 후 변경 불가). 소스 패키지·namespace(com.simple.bulletjournal)는 내부용이라 그대로 둔다.
+        applicationId = "com.zeonerd.todaynote"
         minSdk = 26
         targetSdk = 36
         versionCode = 2

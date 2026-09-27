@@ -20,7 +20,7 @@ data class BackupContents(
  * 백업 파일(JSON) 형식 정의와 변환.
  *
  * ```
- * { "app": "simple-bullet-journal", "formatVersion": 1, "exportedAt": "2026-09-27T12:00:00Z",
+ * { "app": "todaynote", "formatVersion": 1, "exportedAt": "2026-09-27T12:00:00Z",
  *   "tasks": [ { "date": "2026-09-27", "content": "...", "isCompleted": false, "isPriority": false,
  *                "isMigrated": false, "orderIndex": 0, "createdAt": 1790000000000 } ] }
  * ```
@@ -28,7 +28,10 @@ data class BackupContents(
  * - Task에 필드가 추가되면 [FORMAT_VERSION]을 올리고, [decode]가 이전 버전 파일도 읽을 수 있게(새 필드는 기본값) 유지할 것.
  */
 object JournalBackup {
-    const val APP_ID = "simple-bullet-journal"
+    const val APP_ID = "todaynote"
+
+    // 앱 이름을 오늘노트로 바꾸기 전(2026-09-27 이전)에 만든 백업 파일의 식별자. 옛 백업도 계속 복원할 수 있어야 한다.
+    private const val LEGACY_APP_ID = "simple-bullet-journal"
     const val FORMAT_VERSION = 1
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -62,7 +65,7 @@ object JournalBackup {
     fun decode(json: String): BackupContents {
         try {
             val root = JSONObject(json)
-            if (root.optString("app") != APP_ID) {
+            if (root.optString("app") !in setOf(APP_ID, LEGACY_APP_ID)) {
                 throw InvalidBackupException("이 앱의 백업 파일이 아닙니다")
             }
             val version = root.optInt("formatVersion", -1)

@@ -48,11 +48,13 @@ def load_font(size, bold=False):
             continue
     return ImageFont.load_default()
 
-title_font = load_font(64, bold=True)
+title_font = load_font(88, bold=True)
+brand_en_font = load_font(34)
 subtitle_font = load_font(30)
 
-draw.text((margin_x + 40, 150), "Simple Bullet", font=title_font, fill=NOTE_TEXT)
-draw.text((margin_x + 40, 225), "Journal", font=title_font, fill=NOTE_TEXT)
+# 앱 이름: 오늘노트 / TodayNote (2026-09-27 "Simple Bullet Journal"에서 변경 — 상표 문제, HANDOVER 13절)
+draw.text((margin_x + 40, 120), "오늘노트", font=title_font, fill=NOTE_TEXT)
+draw.text((margin_x + 46, 232), "TodayNote", font=brand_en_font, fill=MARGIN_LINE)
 draw.text((margin_x + 40, 310), "줄공책 감성 그대로, 오늘 할 일을 기록하세요", font=subtitle_font, fill=(160, 174, 192))
 
 # A small star accent (priority marker) near title

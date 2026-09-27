@@ -1,6 +1,6 @@
 # 📋 개발 인수인계 문서 (Handover Document - v1.0.0)
 
-본 문서는 **Simple Bullet Journal** 프로젝트의 아키텍처 설계 배경, 주요 구현 상세, 그리고 **v1.1+ 개발자가 즉시 작업을 이어갈 수 있도록 필요한 기술적 맥락과 로드맵**을 상세히 기술합니다.
+본 문서는 **오늘노트(TodayNote)** 프로젝트(구 Simple Bullet Journal — 13절)의 아키텍처 설계 배경, 주요 구현 상세, 그리고 **v1.1+ 개발자가 즉시 작업을 이어갈 수 있도록 필요한 기술적 맥락과 로드맵**을 상세히 기술합니다.
 
 > 2026-09-19~20에 실제 소스 코드(`app/src`)를 전수 대조해 최신화했고, 2026-09-27 PM 인수인계 리뷰에서 다시 전수 대조했습니다(9~11절 추가).
 
@@ -8,7 +8,7 @@
 
 ## 🚦 현재 상태 요약 (2026-09-27 기준, 다음 담당자용 TL;DR)
 
-**한 줄 요약**: **출시에 필요한 코드 작업은 끝났고 main에 push되어 있습니다.** 남은 건 Play Console 계정·등록 작업(11절 절차)과, 신규 개인 계정이면 **12명 × 14일 비공개 테스트**입니다.
+**한 줄 요약**: **출시에 필요한 코드 작업은 끝났고 main에 push되어 있습니다.** 앱 이름은 **오늘노트 / TodayNote**, 패키지 ID는 **`com.zeonerd.todaynote`**(13절). 남은 건 Play Console 계정·등록 작업(11절 절차)과, 신규 개인 계정이면 **12명 × 14일 비공개 테스트**입니다.
 
 > ⚠️ 2026-09-20 버전 문서는 "코드 관점에서 막힌 것은 없다"고 했으나, 당시 Billing 7.1.1을 쓰고 있어 **Play 정책(2026-08-31부터 Billing 8 이상 필수)상 업로드 자체가 거절되는 상태**였습니다. 9절 참고.
 
@@ -389,7 +389,7 @@ PM 제안 중 사용자 확정분 2건. DB 스키마 변경 없음(버전 4 유�
 2. ⚠️ **2023-11-13 이후 생성한 개인 계정**은 프로덕션 출시 전 **비공개 테스트(테스터 12명 이상, 14일 연속 참여)**가 필수(D절). 조직 계정·그 이전 개인 계정은 면제.
 
 ### B. 앱 생성 + 앱 콘텐츠 + 스토어 등록정보
-1. **앱 만들기**: 기본 언어 한국어, 앱, 무료, 정책 동의. 앱 이름(최대 30자)은 결정 필요 — 런처 이름은 `불렛 저널`(`strings.xml`).
+1. **앱 만들기**: 기본 언어 한국어, 앱, 무료, 정책 동의. 앱 이름: **`오늘노트 - 할 일, 투두리스트, 체크리스트`**(영문 등록정보 `TodayNote - To-do List & Daily Tasks`). 런처 이름은 `오늘노트`(영어 기기 `TodayNote`).
 2. **앱 콘텐츠(정책 → 앱 콘텐츠)**
    | 항목 | 답변 |
    |---|---|
@@ -406,7 +406,8 @@ PM 제안 중 사용자 확정분 2건. DB 스키마 변경 없음(버전 4 유�
 
 ### C. 첫 업로드 + 인앱결제 검증 (내부 테스트)
 1. **Play 앱 서명 방식 — 첫 업로드 전에 결정(나중에 바꾸기 어려움)**
-   * (권장, 2026-09-27 갱신) **Google이 생성한 키(기본값)**: 가장 간단하고 Google 권장. Play에서 받은 앱은 지금 폰에 직접 설치한 빌드(`keystore/release.jks` 서명)와 서명이 달라 덮어 설치가 안 되므로, **① 직접 설치본에서 "백업 파일 만들기" → ② 앱 삭제 → ③ Play에서 설치 → ④ "백업에서 복원"** 순서로 옮기면 됩니다(12절).
+   * (권장, 2026-09-27 갱신) **Google이 생성한 키(기본값)**: 가장 간단하고 Google 권장.
+   * 패키지 ID가 `com.zeonerd.todaynote`로 바뀌어(13절), 폰에 직접 설치했던 옛 앱(`com.simple.bulletjournal`, "불렛 저널")은 **서명과 무관하게 별개의 앱**입니다. 기록은 **① 옛 앱에서 "백업 파일 만들기" → ② 새 앱(오늘노트)에서 "백업에서 복원" → ③ 확인 후 옛 앱 삭제** 순서로 옮깁니다(옛 백업 파일도 복원됨, 12·13절).
    * (대안) "Java 키 저장소에서 키 내보내기 및 업로드"로 기존 `release.jks`를 앱 서명 키로 등록(PEPK 도구): 백업/복원 없이 덮어 설치 가능. 절차가 복잡해 백업/복원 기능이 생긴 뒤로는 필요성이 낮음.
    * 어느 쪽이든 `keystore/release.jks`(업로드 키) 백업은 필수.
 2. `./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab` (2026-09-27 빌드 확인, 약 8MB)
@@ -457,4 +458,31 @@ PM 제안 중 사용자 확정분 2건. DB 스키마 변경 없음(버전 4 유�
 
 * 테스트용 파일(잘못된 형식 파일, 비교용 두 번째 백업)은 기기에서 삭제했고, 사용자의 실제 백업 파일 `Download/bullet-journal-backup-2026-09-27.json`은 남겨 둠.
 * 파일 선택 화면(DocumentsUI)은 같은 이름이 있으면 `… (1).json`으로 저장함 — 덮어쓰기 걱정 없음.
+
+---
+
+## 13. 앱 이름·패키지 ID 변경 (2026-09-27)
+
+### 13.1 결정
+| 항목 | 이전 | 변경 |
+|---|---|---|
+| 앱 이름(런처) | 불렛 저널 | **오늘노트** (영어 기기: **TodayNote**, `values-en/strings.xml`) |
+| 스토어 이름 | (미정) | `오늘노트 - 할 일, 투두리스트, 체크리스트` / `TodayNote - To-do List & Daily Tasks` |
+| 패키지 ID (`applicationId`) | `com.simple.bulletjournal` | **`com.zeonerd.todaynote`** — 첫 업로드 후 변경 불가. Play에 동일 ID 공개 앱 없음 확인(404) |
+| 백업 파일 | `bullet-journal-backup-날짜.json`, `"app":"simple-bullet-journal"` | `todaynote-backup-날짜.json`, `"app":"todaynote"` — **옛 식별자도 계속 복원 허용**(테스트 `decode_acceptsLegacyBackupsMadeBeforeRename`) |
+| 그래픽 이미지 | "Simple Bullet Journal" | "오늘노트 / TodayNote" (`store_assets/scripts/render_banner.py`로 재생성) |
+| 개인정보처리방침·스토어 문구·README | Simple Bullet Journal / 불렛 저널 방식 | 오늘노트(TodayNote), 상표 단어 제거 |
+
+### 13.2 배경
+* **"Bullet Journal®"·"BuJo®"는 등록 상표**(Lightcage, LLC / Ryder Carroll). 상표권자는 제3자가 이 표장으로 제품·서비스를 판매하는 것을 금지하고 공식 앱을 따로 운영함. 광고·인앱결제로 수익을 내는 우리 앱에 쓰면 Play 상표 신고로 게시 중단될 위험 → 이름·설명·패키지 ID에서 모두 제거. **앞으로도 스토어 문구·마케팅에 "불렛 저널/Bullet Journal/BuJo"를 쓰지 말 것.**
+* 이름은 벤치마크(개발자 "Notas Notepad"의 `[수식어]노트` 작명 + 이름 뒤 검색 키워드) 검토 후 사용자가 **오늘노트**로 결정. 영문은 "Daily Journal"(일기 앱이 포화, 할 일 앱과 결 다름, 식별력 약함) 대신 1:1 대응하는 **TodayNote**(Play 동일 이름 없음).
+* "오늘노트" 검색 시 DailyNote류 메모 앱이 함께 노출되므로 스토어 이름 뒤 키워드("할 일, 투두리스트, 체크리스트")로 할 일 앱임을 분명히 함.
+* 상표(KIPRIS) 조사: "오늘노트"·"TodayNote"·"오늘 노트" 국내 상표 0건까지 확인 후, 사용자 요청으로 추가 조사는 생략. 필요 시 출원 검토.
+
+### 13.3 바꾸지 않은 것(내부 이름 — 사용자에게 안 보임)
+* 소스 패키지·`namespace`(`com.simple.bulletjournal`), 클래스명(`BulletJournalApp`, `BulletJournalWidget`), 테마명(`Theme.SimpleBulletJournal`), DB 파일명(`bullet_journal.db`), `rootProject.name`, GitHub 저장소명(개인정보처리방침 URL `…/simple-bullet-journal/…` 포함). 저장소명을 바꾸면 방침 URL이 바뀌므로 Play 등록 전이라면 함께 결정할 것.
+
+### 13.4 영향
+* 폰의 옛 앱(`com.simple.bulletjournal`)과 새 앱(`com.zeonerd.todaynote`)은 **별개 앱으로 공존**. 기록 이전은 백업 → 복원(11절 C-1).
+* AdMob: 실제 광고 ID로 교체·스토어 연결 시 새 패키지 기준으로 연결할 것.
 

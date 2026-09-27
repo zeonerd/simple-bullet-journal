@@ -143,7 +143,7 @@ fun SettingsScreen(
             SettingsActionRow(
                 title = "백업 파일 만들기",
                 description = "모든 할 일 기록을 파일로 저장합니다",
-                onClick = { exportLauncher.launch("bullet-journal-backup-${LocalDate.now()}.json") }
+                onClick = { exportLauncher.launch("todaynote-backup-${LocalDate.now()}.json") }
             )
             SettingsActionRow(
                 title = "백업에서 복원",

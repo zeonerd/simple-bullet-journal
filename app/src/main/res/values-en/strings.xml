@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 앱 화면은 한국어 전용이지만, 영어 설정 기기의 런처·위젯 목록에는 영문 브랜드명을 보여준다 -->
+    <string name="app_name">TodayNote</string>
+    <string name="widget_description">See today\'s tasks on your home screen</string>
+</resources>
