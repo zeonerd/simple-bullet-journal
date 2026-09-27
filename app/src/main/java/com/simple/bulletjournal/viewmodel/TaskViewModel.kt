@@ -3,6 +3,7 @@ package com.simple.bulletjournal.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.simple.bulletjournal.data.EARLIEST_TASK_DATE
 import com.simple.bulletjournal.data.Task
 import com.simple.bulletjournal.data.TaskRepository
 import com.simple.bulletjournal.widget.BulletJournalWidget
@@ -14,7 +15,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -41,8 +44,9 @@ class TaskViewModel @Inject constructor(
 
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-    private var lastKnownToday: LocalDate = today()
-    private val _selectedDate = MutableStateFlow(lastKnownToday)
+    // 이월 배너가 "오늘/내일"을 기준으로 달라지므로, 자정이 지나면 날짜를 보고 있던 페이지와 무관하게 다시 계산되도록 흐름으로 둔다.
+    private val _today = MutableStateFlow(today())
+    private val _selectedDate = MutableStateFlow(_today.value)
     val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -50,13 +54,30 @@ class TaskViewModel @Inject constructor(
         .flatMapLatest { date -> repository.getTasksByDate(date.format(formatter)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * 현재 페이지에서 보여줄 이월 배너. 없으면 null.
+     * - 오늘 페이지: 오늘 이전 모든 날짜의 미완료 할 일 → 오늘로 가져오기
+     * - 내일 페이지: 오늘 남은 할 일 → 내일로 미리 옮기기
+     * - 그 외 날짜: 배너 없음
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val yesterdayUncompletedTasks: StateFlow<List<Task>> = _selectedDate
-        .flatMapLatest { date ->
-            repository.getTasksByDate(date.minusDays(1).format(formatter))
-                .map { list -> list.filter { !it.isCompleted && !it.isMigrated } }
+    val migrationOffer: StateFlow<MigrationOffer?> = combine(_selectedDate, _today) { date, today -> date to today }
+        .flatMapLatest { (date, today) ->
+            val kind = migrationKindFor(date, today) ?: return@flatMapLatest flowOf(null)
+            val (fromDate, untilDate) = migrationSourceRange(kind, today)
+            repository.getMigratableTasks(fromDate, untilDate).map { tasks ->
+                if (tasks.isEmpty()) {
+                    null
+                } else {
+                    MigrationOffer(
+                        kind = kind,
+                        count = tasks.size,
+                        oldestDate = LocalDate.parse(tasks.first().date, formatter)
+                    )
+                }
+            }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun selectDate(date: LocalDate) {
         _selectedDate.value = date
@@ -80,11 +101,12 @@ class TaskViewModel @Inject constructor(
      */
     fun onAppResumed() {
         val now = today()
-        if (now == lastKnownToday) return
-        if (_selectedDate.value == lastKnownToday) {
+        val previousToday = _today.value
+        if (now == previousToday) return
+        if (_selectedDate.value == previousToday) {
             _selectedDate.value = now
         }
-        lastKnownToday = now
+        _today.value = now
     }
 
     fun addTask(content: String) {
@@ -108,13 +130,27 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun migrateYesterdayTasks() {
+    /** 현재 페이지의 이월 배너([migrationOffer])가 가리키는 할 일들을 현재 페이지 날짜로 옮깁니다. */
+    fun migrateTasks() {
         viewModelScope.launch {
-            val yesterday = _selectedDate.value.minusDays(1).format(formatter)
-            val currentDate = _selectedDate.value.format(formatter)
-            val migratedCount = repository.migrateUncompletedTasks(fromDate = yesterday, toDate = currentDate)
+            val date = _selectedDate.value
+            val today = _today.value
+            val kind = migrationKindFor(date, today) ?: return@launch
+            val (fromDate, untilDate) = migrationSourceRange(kind, today)
+            val migratedCount = repository.migrateUncompletedTasks(fromDate, untilDate, date.format(formatter))
             if (migratedCount > 0) updateWidget()
         }
+    }
+
+    private fun migrationKindFor(date: LocalDate, today: LocalDate): MigrationKind? = when (date) {
+        today -> MigrationKind.PAST_TO_TODAY
+        today.plusDays(1) -> MigrationKind.TODAY_TO_TOMORROW
+        else -> null
+    }
+
+    private fun migrationSourceRange(kind: MigrationKind, today: LocalDate): Pair<String, String> = when (kind) {
+        MigrationKind.PAST_TO_TODAY -> EARLIEST_TASK_DATE to today.format(formatter)
+        MigrationKind.TODAY_TO_TOMORROW -> today.format(formatter) to today.plusDays(1).format(formatter)
     }
 
     fun toggleTask(task: Task) {
@@ -142,3 +178,12 @@ class TaskViewModel @Inject constructor(
         widgetUpdater()
     }
 }
+
+enum class MigrationKind { PAST_TO_TODAY, TODAY_TO_TOMORROW }
+
+/** 이월 배너 표시 정보. [oldestDate]는 대상 중 가장 오래된 날짜(여러 날에 걸쳐 쌓였는지 안내용). */
+data class MigrationOffer(
+    val kind: MigrationKind,
+    val count: Int,
+    val oldestDate: LocalDate
+)

@@ -30,7 +30,15 @@ class TaskRepositoryImpl(
         taskDao.deleteTask(task)
     }
 
-    override suspend fun migrateUncompletedTasks(fromDate: String, toDate: String): Int {
-        return taskDao.migrateUncompletedTasks(fromDate, toDate)
+    override fun getMigratableTasks(fromDate: String, untilDate: String): Flow<List<Task>> {
+        return taskDao.getMigratableTasks(fromDate, untilDate)
+    }
+
+    override suspend fun getMigratableTasksOnce(fromDate: String, untilDate: String): List<Task> {
+        return taskDao.getMigratableTasksOnce(fromDate, untilDate)
+    }
+
+    override suspend fun migrateUncompletedTasks(fromDate: String, untilDate: String, toDate: String): Int {
+        return taskDao.migrateUncompletedTasks(fromDate, untilDate, toDate)
     }
 }

@@ -38,6 +38,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.color.ColorProvider
 import com.simple.bulletjournal.MainActivity
 import com.simple.bulletjournal.data.AppDatabase
+import com.simple.bulletjournal.data.EARLIEST_TASK_DATE
 import com.simple.bulletjournal.data.Task
 import com.simple.bulletjournal.data.TaskRepository
 import com.simple.bulletjournal.data.TaskRepositoryImpl
@@ -64,21 +65,21 @@ class BulletJournalWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
         val tasks = repository.getTasksByDateOnce(today)
-        val uncompletedYesterdayCount = repository.getTasksByDateOnce(yesterday).count { !it.isCompleted && !it.isMigrated }
+        // 앱의 오늘 페이지 배너와 같은 기준: 오늘 이전 모든 날짜의 미완료·미이월 할 일
+        val uncompletedPastCount = repository.getMigratableTasksOnce(EARLIEST_TASK_DATE, today).size
         val displayDate = LocalDate.now().format(
             DateTimeFormatter.ofPattern("M월 d일 (E)", Locale.KOREAN)
         )
 
         provideContent {
-            WidgetContent(displayDate, tasks, uncompletedYesterdayCount)
+            WidgetContent(displayDate, tasks, uncompletedPastCount)
         }
     }
 
     @Composable
-    private fun WidgetContent(displayDate: String, tasks: List<Task>, uncompletedYesterdayCount: Int) {
+    private fun WidgetContent(displayDate: String, tasks: List<Task>, uncompletedPastCount: Int) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -111,8 +112,8 @@ class BulletJournalWidget : GlanceAppWidget() {
                     .background(RuledLineColor)
             )
 
-            // ── Yesterday Migration Banner (if any) ──
-            if (uncompletedYesterdayCount > 0) {
+            // ── Past Migration Banner (if any) ──
+            if (uncompletedPastCount > 0) {
                 Row(
                     modifier = GlanceModifier
                         .fillMaxWidth()
@@ -123,7 +124,7 @@ class BulletJournalWidget : GlanceAppWidget() {
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
                     Text(
-                        text = "❭ 어제 미완료 ${uncompletedYesterdayCount}개",
+                        text = "❭ 지난 미완료 ${uncompletedPastCount}개",
                         modifier = GlanceModifier.defaultWeight(),
                         style = TextStyle(
                             fontSize = 11.sp,
@@ -259,9 +260,8 @@ class MigrateTasksAction : ActionCallback {
         parameters: ActionParameters
     ) {
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
-        repository.migrateUncompletedTasks(fromDate = yesterday, toDate = today)
+        repository.migrateUncompletedTasks(fromDate = EARLIEST_TASK_DATE, untilDate = today, toDate = today)
         BulletJournalWidget().update(context, glanceId)
     }
 }

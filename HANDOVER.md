@@ -90,7 +90,7 @@
 * 위젯은 Compose UI와 문법이 유사하나, **Jetpack Glance 전용 컴포넌트**(`androidx.glance.*`)만 사용해야 합니다.
 * 앱 내부에서 태스크 변경 시 ViewModel에서 `updateWidget()`을 통해 모든 활성 위젯을 자동 갱신합니다.
 * 위젯에서 할 일 체크 또는 이월 클릭 시에는 `ActionCallback`(`ToggleTaskAction`, `MigrateTasksAction`)에서 DB를 직접 조작한 뒤 `BulletJournalWidget().update(context, glanceId)`를 호출합니다.
-* 이월 로직은 앱(`TaskViewModel`)과 위젯(`MigrateTasksAction`)이 모두 `TaskRepository.migrateUncompletedTasks(fromDate, toDate)` 하나를 공유합니다. 실제 구현은 `TaskDao`의 `@Transaction` 메서드라 연속 클릭·동시 실행에도 중복 이월이 생기지 않습니다(2026-09-27).
+* 이월 로직은 앱(`TaskViewModel`)과 위젯(`MigrateTasksAction`)이 모두 `TaskRepository.migrateUncompletedTasks(fromDate, untilDate, toDate)` 하나를 공유합니다(원본 날짜 범위 `fromDate` 이상 `untilDate` 미만). 실제 구현은 `TaskDao`의 `@Transaction` 메서드라 연속 클릭·동시 실행에도 중복 이월이 생기지 않습니다(2026-09-27). 위젯은 항상 "오늘 이전 전체 → 오늘"(`EARLIEST_TASK_DATE` ~ 오늘)입니다. 앱 쪽 규칙은 10.2절 참고.
 * 위젯 색상은 `ui/theme/Color.kt`의 라이트/다크 팔레트를 `ColorProvider(day = ..., night = ...)`로 그대로 재사용해 앱 본체와 톤을 맞춥니다.
 * `BulletJournalWidget.provideGlance`, `ToggleTaskAction`, `MigrateTasksAction` 세 곳 모두 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`을 직접 생성해서 사용합니다(Hilt 미사용). Repository 생성자 시그니처가 바뀌면 이 세 곳을 모두 함께 고쳐야 합니다.
 
@@ -101,7 +101,7 @@
 * 단위 테스트는 `app/src/test/java/com/simple/bulletjournal/`에 위치합니다.
 * 테스트 시 Room DB 대신 **`FakeTaskRepository`**를 사용합니다.
 * **주의**: `TaskDao`의 정렬 쿼리(`isPriority DESC, orderIndex ASC, createdAt ASC`)가 변경되면, `FakeTaskRepository`의 `sortedWith` 로직도 반드시 동일하게 맞춰주어야 테스트 일관성이 유지됩니다.
-* **주의**: `FakeTaskRepository.migrateUncompletedTasks`는 `TaskDao.migrateUncompletedTasks`의 규칙(미완료·미이월만 복사, 원본에 `isMigrated` 표시)을 그대로 복제한 것입니다. DAO 쪽 규칙이 바뀌면 함께 맞출 것.
+* **주의**: `FakeTaskRepository`의 `getMigratableTasks(Once)` / `migrateUncompletedTasks`는 `TaskDao`의 같은 이름 메서드 규칙(날짜 범위, 미완료·미이월 필터, `date ASC` → 화면 정렬 순, `createdAt`에 순번 가산, 원본에 `isMigrated` 표시)을 그대로 복제한 것입니다. DAO 쪽 쿼리·로직이 바뀌면 함께 맞출 것. **Room 쿼리 자체는 단위테스트로 검증되지 않으므로**(androidTest 미구축) 변경 시 실기기 확인 필수.
 * **주의**: `FakeTaskRepository.insertTask`는 `id == 0L`일 때만 자동으로 id를 채번합니다(`nextId++`). 테스트에서 사전 데이터를 만들 때 `Task(id = 1, ...)`처럼 id를 직접 지정하면 이 카운터와 충돌해 엉뚱한 레코드가 덮어써질 수 있습니다(6절 이슈 4 참고) — **테스트 데이터의 id는 항상 기본값(0, 자동 할당)으로 둘 것.**
 * 테스트 실행 명령어:
   ```bash
@@ -300,7 +300,7 @@
 * **환불 반영**: 앱 시작 시/복원 시 구매 조회가 **성공했는데** 해당 상품의 `PURCHASED` 구매가 없으면 `isAdRemoved = false`로 되돌립니다. 조회 자체가 실패하면(오프라인 등) 상태를 건드리지 않습니다.
 
 ### 9.5 🟡 이월 트랜잭션화 + 자정 날짜 갱신
-* **이월**: 앱·위젯에 중복돼 있던 이월 루프를 `TaskDao.migrateUncompletedTasks`(`@Transaction`)로 일원화(3절). 신규 테스트 `migrateYesterdayTasks_calledTwice_doesNotDuplicate`.
+* **이월**: 앱·위젯에 중복돼 있던 이월 루프를 `TaskDao.migrateUncompletedTasks`(`@Transaction`)로 일원화(3절). 신규 테스트 `migrateTasks_calledTwice_doesNotDuplicate`(10절에서 이름 변경).
 * **자정**: 앱을 켜둔 채 자정을 넘기면 "오늘" 페이지가 어제 날짜에 머물렀습니다. `TaskViewModel.onAppResumed()`를 `MainScreen`의 `LifecycleEventEffect(ON_RESUME)`에서 호출해, "오늘"을 보고 있던 경우에만 새 날짜로 옮깁니다(일부러 다른 날짜를 보던 경우는 유지). 테스트용으로 `today: () -> LocalDate`를 교체 가능하게 둠(`widgetUpdater`와 같은 방식). 의존성 `lifecycle-runtime-compose` 추가.
 * 위젯은 `updatePeriodMillis = 30분` 주기라 자정 후 최대 30분간 전날 날짜가 보일 수 있습니다 — 출시 차단 사유는 아니라 보류.
 
@@ -328,3 +328,33 @@
 * **원인**: 화면 전환을 `NavHost` 없이 `MainActivity`의 `showSettings` 로컬 상태로 하는데, `SettingsScreen`이 시스템 뒤로가기를 가로채지 않아 Activity가 그대로 종료됐습니다. 상단 ← 버튼만 동작했습니다.
 * **해결**: `SettingsScreen`에 `BackHandler(onBack = onBack)` 추가. 화면이 늘어나 `NavHost`로 옮기기 전까지는, 새 화면을 추가할 때마다 같은 처리가 필요합니다.
 * ✅ 실기기 재검증 완료(2026-09-27): 설정 진입 → 시스템 뒤로가기 → 메인 화면으로 복귀, 앱 유지 확인.
+
+---
+
+## 10. 1차 출시 사용성 개선 (2026-09-27)
+
+PM 제안 중 사용자 확정분 2건. DB 스키마 변경 없음(버전 4 유지).
+
+### 10.1 빠른 기록(Rapid Logging) — 연속 입력
+* `MainScreen`의 할 일 추가 후 `focusManager.clearFocus()`를 없애 키보드·포커스를 유지 → 연달아 입력 가능.
+* 빈 입력창에서 완료/추가를 누르면 입력 종료로 보고 키보드를 내림.
+* 추가 직후 새 항목(가장 최근 `createdAt`)이 키보드에 가려지면 그 줄까지 자동 스크롤(`NotebookPage`의 `ScrollState`를 `MainScreen`으로 끌어올림).
+
+### 10.2 이월 범위 확장 — 결정 사항
+| 보고 있는 페이지 | 배너 | 이월 원본 범위 |
+|---|---|---|
+| 오늘 | "❭ 지난 미완료 할 일 N개" (+어제보다 오래된 게 있으면 "M월 d일부터") → 가져오기 | 오늘 **이전 전체**(기간 제한 없음) |
+| 내일 | "❭ 오늘 남은 할 일 N개" → 내일로 | 오늘 |
+| 그 외 날짜 | 없음 | — |
+
+* **결정 배경(사용자 확정)**: 하루라도 앱을 안 열면 이전 미완료 할 일이 영영 사라지던 문제를 해결. 과거 페이지에서 "그 이전 전체"를 보여주면 헷갈리므로 오늘 페이지로 한정. 기존의 "내일 페이지에서 오늘 남은 일을 미리 옮기기" 사용성은 유지. 기간 제한은 두지 않음(불렛저널의 "의식적 이월" 취지).
+* **구현**: `TaskViewModel.migrationOffer: StateFlow<MigrationOffer?>`(종류/개수/가장 오래된 날짜)와 `migrateTasks()`가 (선택 날짜, 오늘)로 종류를 판정. "오늘"은 `_today` StateFlow로 두어 자정이 지나면(`onAppResumed`) 배너가 다시 계산됨. 기존 `yesterdayUncompletedTasks` / `migrateYesterdayTasks()`는 제거.
+* **알려진 한계**: 끝내 안 할 일(완료도 삭제도 안 한 항목)은 오늘 배너에 계속 잡힙니다. 현재는 완료 처리나 삭제만 가능 — 출시 후 과제 "항목별 가져오기/버리기 선택"으로 해결 예정. `migrateUncompletedTasks`가 날짜 범위를 받는 구조라, 선택한 항목 id 목록을 받는 오버로드를 추가하면 됩니다.
+* **테스트**: 30/30 통과(신규 4: 지난 전체 집계·완료/이월/오늘/미래 제외, 여러 날 순서 유지, 내일 페이지 동작, 그 외 날짜 배너 없음).
+
+### 10.3 실기기 검증 체크리스트 (기기 연결이 끊겨 아직 미수행)
+1. 미래 날짜(예: 10/10)에 더미 할 일 8개 연속 입력 → 키보드 유지, 새 항목 자동 스크롤, 빈 칸 완료 시 키보드 내림 → 더미 삭제
+2. 오늘 페이지 배너가 "지난 미완료 할 일 N개"로 바뀌고 N이 실제 과거 미완료 합계와 일치하는지(읽기만)
+3. 내일 페이지 배너 "오늘 남은 할 일" 노출(읽기만)
+4. 위젯 문구 "❭ 지난 미완료 N개"
+5. 실제 "가져오기"는 **사용자가 직접** 눌러 확인(실사용 데이터 보호 — 사용자 결정)

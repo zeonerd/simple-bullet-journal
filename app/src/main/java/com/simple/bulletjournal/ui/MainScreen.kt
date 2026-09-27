@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -47,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -69,6 +72,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.simple.bulletjournal.data.Task
 import com.simple.bulletjournal.ui.ads.BannerAd
 import com.simple.bulletjournal.ui.theme.LocalNotebookColors
+import com.simple.bulletjournal.viewmodel.MigrationKind
+import com.simple.bulletjournal.viewmodel.MigrationOffer
 import com.simple.bulletjournal.viewmodel.TaskViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -92,12 +97,31 @@ fun MainScreen(
     val colors = LocalNotebookColors.current
     val selectedDate by viewModel.selectedDate.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
-    val yesterdayUncompletedTasks by viewModel.yesterdayUncompletedTasks.collectAsState()
+    val migrationOffer by viewModel.migrationOffer.collectAsState()
     var newTaskText by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     var showMigrationDialog by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val isToday = selectedDate == LocalDate.now()
+    val notebookScrollState = rememberScrollState()
+    var scrollToNewestTask by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+
+    // 연속 입력 중 키보드가 올라와 있어 공책 영역이 좁아지므로, 방금 추가한 할 일이 가려지지 않게 그 줄까지 스크롤한다.
+    LaunchedEffect(tasks) {
+        if (!scrollToNewestTask) return@LaunchedEffect
+        scrollToNewestTask = false
+        val newestIndex = tasks.indices.maxByOrNull { tasks[it].createdAt } ?: return@LaunchedEffect
+        val lineHeightPx = with(density) { LineHeight.toPx() }
+        val itemTop = (newestIndex * lineHeightPx).toInt()
+        val itemBottom = ((newestIndex + 1) * lineHeightPx).toInt()
+        val visibleTop = notebookScrollState.value
+        val visibleBottom = visibleTop + notebookScrollState.viewportSize
+        when {
+            itemBottom > visibleBottom -> notebookScrollState.animateScrollTo(itemBottom - notebookScrollState.viewportSize)
+            itemTop < visibleTop -> notebookScrollState.animateScrollTo(itemTop)
+        }
+    }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.onAppResumed()
@@ -138,10 +162,10 @@ fun MainScreen(
                 onTodayClick = viewModel::goToToday
             )
 
-            // ── Migration Banner (if yesterday has uncompleted tasks) ──
-            if (yesterdayUncompletedTasks.isNotEmpty()) {
+            // ── Migration Banner (오늘: 지난 미완료 전체 / 내일: 오늘 남은 할 일) ──
+            migrationOffer?.let { offer ->
                 MigrationBanner(
-                    count = yesterdayUncompletedTasks.size,
+                    offer = offer,
                     onMigrateClick = { showMigrationDialog = true }
                 )
             }
@@ -153,6 +177,7 @@ fun MainScreen(
                 onTogglePriority = viewModel::togglePriority,
                 onEdit = viewModel::editTask,
                 onDelete = viewModel::deleteTask,
+                scrollState = notebookScrollState,
                 modifier = Modifier.weight(1f)
             )
 
@@ -160,10 +185,14 @@ fun MainScreen(
             TaskInputBar(
                 text = newTaskText,
                 onTextChange = { newTaskText = it },
+                // 불렛 저널의 "빠른 기록(Rapid Logging)": 추가 후에도 입력창 포커스를 유지해 바로 다음 할 일을 적게 한다.
+                // 빈 칸에서 완료/추가를 누르면 입력을 끝낸 것으로 보고 키보드를 내린다.
                 onAdd = {
                     if (newTaskText.isNotBlank()) {
                         viewModel.addTask(newTaskText)
                         newTaskText = ""
+                        scrollToNewestTask = true
+                    } else {
                         focusManager.clearFocus()
                     }
                 }
@@ -202,18 +231,28 @@ fun MainScreen(
     }
 
     // ── Migration Confirmation Dialog ──
-    if (showMigrationDialog) {
+    val offer = migrationOffer
+    if (showMigrationDialog && offer != null) {
+        val isPastToToday = offer.kind == MigrationKind.PAST_TO_TODAY
         AlertDialog(
             onDismissRequest = { showMigrationDialog = false },
-            title = { Text("어제 할 일 가져오기") },
-            text = { Text("어제 완료하지 못한 할 일 ${yesterdayUncompletedTasks.size}개를 오늘로 가져오시겠습니까?") },
+            title = { Text(if (isPastToToday) "지난 할 일 가져오기" else "내일로 옮기기") },
+            text = {
+                Text(
+                    if (isPastToToday) {
+                        "지난 날짜에 완료하지 못한 할 일 ${offer.count}개를 오늘로 가져오시겠습니까?"
+                    } else {
+                        "오늘 완료하지 못한 할 일 ${offer.count}개를 내일로 옮기시겠습니까?"
+                    }
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.migrateYesterdayTasks()
+                        viewModel.migrateTasks()
                         showMigrationDialog = false
                     }
-                ) { Text("가져오기", color = colors.marginLine) }
+                ) { Text(if (isPastToToday) "가져오기" else "옮기기", color = colors.marginLine) }
             },
             dismissButton = {
                 TextButton(onClick = { showMigrationDialog = false }) { Text("취소", color = colors.subtleText) }
@@ -233,6 +272,7 @@ private fun NotebookPage(
     onTogglePriority: (Task) -> Unit,
     onEdit: (Task, String) -> Unit,
     onDelete: (Task) -> Unit,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -243,7 +283,7 @@ private fun NotebookPage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
         ) {
             tasks.forEach { task ->
                 NotebookLine {
@@ -429,11 +469,18 @@ private fun TaskOnLine(
 
 @Composable
 private fun MigrationBanner(
-    count: Int,
+    offer: MigrationOffer,
     onMigrateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalNotebookColors.current
+    val isPastToToday = offer.kind == MigrationKind.PAST_TO_TODAY
+    // 어제보다 오래된 할 일이 섞여 있으면 "언제부터 쌓였는지"를 한 줄 더 보여준다
+    val sinceText = if (isPastToToday && offer.oldestDate < LocalDate.now().minusDays(1)) {
+        offer.oldestDate.format(DateTimeFormatter.ofPattern("M월 d일부터", Locale.KOREAN))
+    } else {
+        null
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -446,17 +493,26 @@ private fun MigrationBanner(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "❭ 어제 미완료된 할 일 ${count}개",
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.bannerText
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (isPastToToday) "❭ 지난 미완료 할 일 ${offer.count}개" else "❭ 오늘 남은 할 일 ${offer.count}개",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.bannerText
+            )
+            if (sinceText != null) {
+                Text(
+                    text = sinceText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.bannerText.copy(alpha = 0.7f)
+                )
+            }
+        }
         TextButton(
             onClick = onMigrateClick,
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
         ) {
             Text(
-                text = "가져오기 ➔",
+                text = if (isPastToToday) "가져오기 ➔" else "내일로 ➔",
                 style = MaterialTheme.typography.labelLarge,
                 color = colors.marginLine
             )

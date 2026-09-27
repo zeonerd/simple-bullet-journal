@@ -48,13 +48,34 @@ class FakeTaskRepository : TaskRepository {
         tasksFlow.value = tasksFlow.value.filterNot { it.id == task.id }
     }
 
-    // TaskDao.migrateUncompletedTasks와 동일한 규칙. DAO 쪽 로직이 바뀌면 여기도 함께 맞출 것.
-    override suspend fun migrateUncompletedTasks(fromDate: String, toDate: String): Int {
-        val uncompleted = getTasksByDateOnce(fromDate).filter { !it.isCompleted && !it.isMigrated }
-        uncompleted.forEach { task ->
-            insertTask(Task(date = toDate, content = task.content, isPriority = task.isPriority))
+    // 아래 세 메서드는 TaskDao의 getMigratableTasks / migrateUncompletedTasks와 동일한 규칙(범위·필터·정렬·createdAt 순번).
+    // DAO 쪽 쿼리나 로직이 바뀌면 여기도 함께 맞출 것.
+    private fun List<Task>.migratable(fromDate: String, untilDate: String): List<Task> =
+        filter { it.date >= fromDate && it.date < untilDate && !it.isCompleted && !it.isMigrated }
+            .sortedWith(
+                compareBy<Task> { it.date }
+                    .thenByDescending { it.isPriority }
+                    .thenBy { it.orderIndex }
+                    .thenBy { it.createdAt }
+            )
+
+    override fun getMigratableTasks(fromDate: String, untilDate: String): Flow<List<Task>> {
+        return tasksFlow.map { it.migratable(fromDate, untilDate) }
+    }
+
+    override suspend fun getMigratableTasksOnce(fromDate: String, untilDate: String): List<Task> {
+        return tasksFlow.value.migratable(fromDate, untilDate)
+    }
+
+    override suspend fun migrateUncompletedTasks(fromDate: String, untilDate: String, toDate: String): Int {
+        val migratable = getMigratableTasksOnce(fromDate, untilDate)
+        val baseCreatedAt = System.currentTimeMillis()
+        migratable.forEachIndexed { index, task ->
+            insertTask(
+                Task(date = toDate, content = task.content, isPriority = task.isPriority, createdAt = baseCreatedAt + index)
+            )
             updateTask(task.copy(isMigrated = true))
         }
-        return uncompleted.size
+        return migratable.size
     }
 }

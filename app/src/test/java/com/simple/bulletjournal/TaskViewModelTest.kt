@@ -3,6 +3,7 @@ package com.simple.bulletjournal
 import android.app.Application
 import app.cash.turbine.test
 import com.simple.bulletjournal.data.Task
+import com.simple.bulletjournal.viewmodel.MigrationKind
 import com.simple.bulletjournal.viewmodel.TaskViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -187,13 +188,13 @@ class TaskViewModelTest {
     }
 
     @Test
-    fun migrateYesterdayTasks_copiesOnlyUncompletedTasksToCurrentDate() = runTest {
+    fun migrateTasks_onToday_copiesOnlyUncompletedYesterdayTasks() = runTest {
         val today = LocalDate.now()
         val yesterday = today.minusDays(1)
 
         // 어제 할 일 2개 추가: 1개는 미완료(중요), 1개는 완료
         // id는 FakeTaskRepository가 자동 할당하도록 비워둔다(0). 명시적으로 지정하면
-        // migrateYesterdayTasks()가 내부에서 새로 insert하는 태스크의 자동 할당 id와
+        // migrateTasks()가 내부에서 새로 insert하는 태스크의 자동 할당 id와
         // 우연히 충돌해, updateTask의 id 매칭 로직이 방금 이월된 오늘 태스크까지
         // 어제 태스크로 덮어써버리는 버그가 있었다(이슈 4).
         fakeRepository.insertTask(
@@ -208,7 +209,7 @@ class TaskViewModelTest {
             assertEquals(emptyList<Task>(), awaitItem())
 
             // 어제 미완료 할 일 이월 실행
-            viewModel.migrateYesterdayTasks()
+            viewModel.migrateTasks()
 
             // 오늘 날짜로 미완료 할 일만 이월되어 추가되었는지 검증
             val todayTasks = awaitItem()
@@ -266,12 +267,12 @@ class TaskViewModelTest {
     }
 
     @Test
-    fun migrateYesterdayTasks_calledTwice_doesNotDuplicate() = runTest {
+    fun migrateTasks_calledTwice_doesNotDuplicate() = runTest {
         val yesterday = LocalDate.now().minusDays(1)
         fakeRepository.insertTask(Task(date = yesterday.format(formatter), content = "한 번만 이월"))
 
-        viewModel.migrateYesterdayTasks()
-        viewModel.migrateYesterdayTasks()
+        viewModel.migrateTasks()
+        viewModel.migrateTasks()
 
         val todayTasks = fakeRepository.getTasksByDateOnce(LocalDate.now().format(formatter))
         assertEquals(1, todayTasks.size)
@@ -306,5 +307,91 @@ class TaskViewModelTest {
         viewModel.onAppResumed()
 
         assertEquals(today, viewModel.selectedDate.value)
+    }
+
+    // ── 이월 배너: 오늘 페이지 = 지난 미완료 전체 / 내일 페이지 = 오늘 남은 할 일 ──
+
+    private suspend fun insert(date: LocalDate, content: String, isCompleted: Boolean = false, isPriority: Boolean = false, isMigrated: Boolean = false) {
+        fakeRepository.insertTask(
+            Task(date = date.format(formatter), content = content, isCompleted = isCompleted, isPriority = isPriority, isMigrated = isMigrated)
+        )
+    }
+
+    @Test
+    fun migrationOffer_onToday_countsAllPastUncompletedOnly() = runTest {
+        val today = LocalDate.now()
+        insert(today.minusDays(5), "5일 전 미완료")
+        insert(today.minusDays(1), "어제 미완료")
+        insert(today.minusDays(1), "어제 완료", isCompleted = true)
+        insert(today.minusDays(1), "어제 이미 이월됨", isMigrated = true)
+        insert(today, "오늘 할 일")
+        insert(today.plusDays(1), "내일 할 일")
+
+        viewModel.migrationOffer.test {
+            val offer = awaitItem()
+            assertEquals(MigrationKind.PAST_TO_TODAY, offer?.kind)
+            assertEquals(2, offer?.count)
+            assertEquals(today.minusDays(5), offer?.oldestDate)
+        }
+    }
+
+    @Test
+    fun migrateTasks_onToday_movesAllPastDaysPreservingOrder() = runTest {
+        val today = LocalDate.now()
+        insert(today.minusDays(3), "3일 전")
+        insert(today.minusDays(1), "어제 1")
+        insert(today.minusDays(1), "어제 2")
+
+        viewModel.migrateTasks()
+
+        val todayTasks = fakeRepository.getTasksByDateOnce(today.format(formatter))
+        assertEquals(listOf("3일 전", "어제 1", "어제 2"), todayTasks.map { it.content })
+        // 원본은 모두 이월 처리되어 더 이상 배너 대상이 아님
+        assertTrue(fakeRepository.getMigratableTasksOnce("0000-01-01", today.format(formatter)).isEmpty())
+    }
+
+    @Test
+    fun migrationOffer_onTomorrow_offersTodayRemainingOnly_andMovesThemToTomorrow() = runTest {
+        val today = LocalDate.now()
+        val tomorrow = today.plusDays(1)
+        insert(today.minusDays(1), "어제 미완료")
+        insert(today, "오늘 남은 일")
+        insert(today, "오늘 끝낸 일", isCompleted = true)
+
+        viewModel.goToNextDay()
+        viewModel.migrationOffer.test {
+            val offer = awaitItem() ?: awaitItem()
+            assertEquals(MigrationKind.TODAY_TO_TOMORROW, offer?.kind)
+            assertEquals(1, offer?.count)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.migrateTasks()
+
+        assertEquals(listOf("오늘 남은 일"), fakeRepository.getTasksByDateOnce(tomorrow.format(formatter)).map { it.content })
+        // 어제 미완료는 내일 페이지에서 건드리지 않음(오늘 페이지에서 가져올 대상)
+        assertEquals(1, fakeRepository.getMigratableTasksOnce("0000-01-01", today.format(formatter)).size)
+    }
+
+    @Test
+    fun migrationOffer_onOtherDates_isNull() = runTest {
+        val today = LocalDate.now()
+        insert(today.minusDays(3), "3일 전 미완료")
+        insert(today, "오늘 미완료")
+
+        viewModel.selectDate(today.minusDays(1))
+        viewModel.migrationOffer.test {
+            assertEquals(null, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.selectDate(today.plusDays(2))
+        viewModel.migrationOffer.test {
+            assertEquals(null, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.migrateTasks()
+        assertTrue(fakeRepository.getTasksByDateOnce(today.plusDays(2).format(formatter)).isEmpty())
     }
 }
