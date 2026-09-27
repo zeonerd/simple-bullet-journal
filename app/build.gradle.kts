@@ -115,6 +115,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    // 로컬 단위테스트의 android.jar에는 org.json이 빈 껍데기(stub)라 백업 파일 변환 테스트용으로 실제 구현을 넣는다
+    testImplementation(libs.org.json)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

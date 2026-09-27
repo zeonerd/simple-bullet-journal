@@ -33,7 +33,8 @@ class SettingsViewModelTest {
         viewModel = SettingsViewModel(
             repository = fakeRepository,
             billingRepository = fakeBillingRepository,
-            adsConsentRepository = fakeAdsConsentRepository
+            adsConsentRepository = fakeAdsConsentRepository,
+            backupRepository = FakeBackupRepository()
         )
     }
 

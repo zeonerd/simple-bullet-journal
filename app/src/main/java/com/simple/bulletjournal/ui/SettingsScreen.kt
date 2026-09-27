@@ -2,6 +2,8 @@ package com.simple.bulletjournal.ui
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,9 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,7 +42,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.simple.bulletjournal.data.BillingNotice
 import com.simple.bulletjournal.data.ThemeMode
 import com.simple.bulletjournal.ui.theme.LocalNotebookColors
+import com.simple.bulletjournal.viewmodel.BackupMessage
+import com.simple.bulletjournal.viewmodel.PendingRestore
 import com.simple.bulletjournal.viewmodel.SettingsViewModel
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun SettingsScreen(
@@ -54,11 +64,26 @@ fun SettingsScreen(
     // 설정 화면에서 뒤로가기를 눌렀을 때 메인 화면이 아니라 앱 자체가 종료된다.
     BackHandler(onBack = onBack)
 
+    val pendingRestore by viewModel.pendingRestore.collectAsState()
+
     LaunchedEffect(viewModel) {
         viewModel.billingNotices.collect { notice ->
             snackbarHostState.showSnackbar(notice.message())
         }
     }
+    LaunchedEffect(viewModel) {
+        viewModel.backupMessages.collect { message ->
+            snackbarHostState.showSnackbar(message.text())
+        }
+    }
+
+    // 안드로이드 기본 파일 선택 화면(SAF)을 써서 저장소 권한 없이 사용자가 고른 위치(내 파일, Google Drive 등)에 읽고 쓴다
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> uri?.let(viewModel::exportBackup) }
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let(viewModel::onRestoreFileSelected) }
 
     Scaffold(
         containerColor = colors.paper,
@@ -68,6 +93,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
         ) {
             // ── Top Bar ──
             Row(
@@ -108,6 +134,22 @@ fun SettingsScreen(
                 label = "다크",
                 selected = preferences.themeMode == ThemeMode.DARK,
                 onSelect = { viewModel.setThemeMode(ThemeMode.DARK) }
+            )
+
+            HorizontalDivider(color = colors.ruledLine)
+
+            // ── Data (Backup / Restore) Section ──
+            SettingsSectionTitle("데이터")
+            SettingsActionRow(
+                title = "백업 파일 만들기",
+                description = "모든 할 일 기록을 파일로 저장합니다",
+                onClick = { exportLauncher.launch("bullet-journal-backup-${LocalDate.now()}.json") }
+            )
+            SettingsActionRow(
+                title = "백업에서 복원",
+                description = "백업 파일의 기록으로 전체를 바꿉니다",
+                // 파일 관리자·드라이브마다 .json의 MIME 타입이 제각각이라 모든 파일을 보여주고, 내용 검증으로 걸러낸다
+                onClick = { restoreLauncher.launch(arrayOf("*/*")) }
             )
 
             HorizontalDivider(color = colors.ruledLine)
@@ -158,6 +200,14 @@ fun SettingsScreen(
             }
         }
     }
+
+    pendingRestore?.let { pending ->
+        RestoreConfirmDialog(
+            pending = pending,
+            onConfirm = viewModel::confirmRestore,
+            onDismiss = viewModel::cancelRestore
+        )
+    }
 }
 
 private fun BillingNotice.message(): String = when (this) {
@@ -167,6 +217,66 @@ private fun BillingNotice.message(): String = when (this) {
     BillingNotice.RESTORED -> "구매 내역을 복원했습니다."
     BillingNotice.NOTHING_TO_RESTORE -> "복원할 구매 내역이 없습니다."
     BillingNotice.RESTORE_FAILED -> "구매 내역을 확인하지 못했습니다. 네트워크 연결을 확인해주세요."
+}
+
+@Composable
+private fun RestoreConfirmDialog(
+    pending: PendingRestore,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = LocalNotebookColors.current
+    val exportedText = pending.contents.exportedAt
+        ?.atZone(ZoneId.systemDefault())
+        ?.format(DateTimeFormatter.ofPattern("yyyy년 M월 d일 HH:mm"))
+        ?.let { " ($it 백업)" }
+        .orEmpty()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("백업에서 복원") },
+        text = {
+            Text(
+                "현재 기록 ${pending.currentTaskCount}개를 모두 지우고, 백업 파일의 기록 ${pending.contents.tasks.size}개${exportedText}로 바꿉니다.\n\n" +
+                    "이 작업은 되돌릴 수 없습니다. 필요하면 먼저 \"백업 파일 만들기\"로 현재 기록을 저장하세요."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("복원", color = colors.completed) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소", color = colors.subtleText) }
+        }
+    )
+}
+
+@Composable
+private fun SettingsActionRow(
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    val colors = LocalNotebookColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(text = title, color = colors.text)
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.subtleText
+        )
+    }
+}
+
+private fun BackupMessage.text(): String = when (this) {
+    is BackupMessage.Exported -> "할 일 ${count}개를 백업 파일로 저장했습니다."
+    BackupMessage.ExportFailed -> "백업 파일을 만들지 못했습니다. 다른 저장 위치를 선택해 주세요."
+    is BackupMessage.InvalidFile -> "올바른 백업 파일이 아닙니다${reason?.let { " ($it)" }.orEmpty()}. 기존 기록은 그대로입니다."
+    is BackupMessage.Restored -> "백업에서 할 일 ${count}개를 복원했습니다."
+    BackupMessage.RestoreFailed -> "복원하지 못했습니다. 기존 기록은 그대로입니다."
 }
 
 @Composable

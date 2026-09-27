@@ -13,6 +13,12 @@ interface TaskRepository {
     suspend fun updateTask(task: Task)
     suspend fun deleteTask(task: Task)
 
+    /** 백업 파일 만들기용 전체 조회 */
+    suspend fun getAllTasksOnce(): List<Task>
+
+    /** 백업 복원: 기존 기록을 모두 [tasks]로 원자적으로 교체합니다. */
+    suspend fun replaceAllTasks(tasks: List<Task>)
+
     /** [fromDate] 이상 [untilDate] 미만 날짜의 미완료·미이월 할 일 (이월 배너용) */
     fun getMigratableTasks(fromDate: String, untilDate: String): Flow<List<Task>>
     suspend fun getMigratableTasksOnce(fromDate: String, untilDate: String): List<Task>

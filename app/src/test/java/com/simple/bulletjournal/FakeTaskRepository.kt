@@ -48,6 +48,20 @@ class FakeTaskRepository : TaskRepository {
         tasksFlow.value = tasksFlow.value.filterNot { it.id == task.id }
     }
 
+    override suspend fun getAllTasksOnce(): List<Task> {
+        return tasksFlow.value.sortedWith(
+            compareBy<Task> { it.date }
+                .thenByDescending { it.isPriority }
+                .thenBy { it.orderIndex }
+                .thenBy { it.createdAt }
+        )
+    }
+
+    // TaskDao.replaceAllTasks와 동일: 전부 지우고 id를 새로 발급
+    override suspend fun replaceAllTasks(tasks: List<Task>) {
+        tasksFlow.value = tasks.map { it.copy(id = nextId++) }
+    }
+
     // 아래 세 메서드는 TaskDao의 getMigratableTasks / migrateUncompletedTasks와 동일한 규칙(범위·필터·정렬·createdAt 순번).
     // DAO 쪽 쿼리나 로직이 바뀌면 여기도 함께 맞출 것.
     private fun List<Task>.migratable(fromDate: String, untilDate: String): List<Task> =

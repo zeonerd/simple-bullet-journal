@@ -30,6 +30,14 @@ class TaskRepositoryImpl(
         taskDao.deleteTask(task)
     }
 
+    override suspend fun getAllTasksOnce(): List<Task> {
+        return taskDao.getAllTasksOnce()
+    }
+
+    override suspend fun replaceAllTasks(tasks: List<Task>) {
+        taskDao.replaceAllTasks(tasks)
+    }
+
     override fun getMigratableTasks(fromDate: String, untilDate: String): Flow<List<Task>> {
         return taskDao.getMigratableTasks(fromDate, untilDate)
     }

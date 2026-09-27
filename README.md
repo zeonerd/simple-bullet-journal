@@ -48,6 +48,7 @@
    - 테마 선택(시스템 기본 / 라이트 / 다크) — 즉시 앱 전체에 반영
    - 광고 제거 구매 버튼 + 구매 복원 버튼 (Google Play Billing 연동, Play Console 상품 등록 후 실결제 가능) — 결제 실패/보류/복원 결과를 스낵바로 안내
    - EEA/영국 등 동의가 필요한 지역에서는 "광고 개인정보 설정" 메뉴로 광고 동의 변경 가능
+   - **데이터 백업/복원**: "백업 파일 만들기"로 전체 기록을 JSON 파일로 저장(내 파일·Google Drive 등 원하는 위치), "백업에서 복원"으로 전체 교체 복원 — 재설치·기기 변경 대비. 저장소 권한 불필요
 
 7. **배너 광고 (AdMob)**
    - 메인 화면 하단에 배너 광고 노출 (GDPR/EEA 동의 플로우 포함)
@@ -98,16 +99,20 @@ app/src/
 │   │   ├── UserPreferencesRepositoryImpl.kt  # DataStore Preferences 기반 구현체
 │   │   ├── BillingRepository.kt      # 인앱결제 Repository 인터페이스 + BillingNotice(사용자 알림)
 │   │   ├── BillingRepositoryImpl.kt  # Play BillingClient 래핑, 상품 ID: remove_ads_sbj, 환불 시 광고 제거 해제
+│   │   ├── JournalBackup.kt          # 백업 파일(JSON) 형식 정의·변환·검증
+│   │   ├── BackupRepository.kt       # 백업/복원 Repository 인터페이스
+│   │   ├── BackupRepositoryImpl.kt   # 파일 선택 화면(SAF) URI 읽기/쓰기 + 전체 교체 복원
 │   │   ├── AdsConsentRepository.kt   # 광고 동의(UMP) Repository 인터페이스
 │   │   └── AdsConsentRepositoryImpl.kt # UMP 동의 수집 + MobileAds 초기화 + 개인정보 옵션 폼
 │   ├── di/                           # Hilt 의존성 주입 모듈
 │   │   ├── DatabaseModule.kt         # AppDatabase, TaskDao, TaskRepository 싱글톤 주입(@Provides)을 한 파일에서 처리
 │   │   ├── DataStoreModule.kt        # DataStore<Preferences>, UserPreferencesRepository 싱글톤 주입
 │   │   ├── BillingModule.kt          # BillingRepository 싱글톤 주입
-│   │   └── AdsModule.kt              # AdsConsentRepository 싱글톤 주입
+│   │   ├── AdsModule.kt              # AdsConsentRepository 싱글톤 주입
+│   │   └── BackupModule.kt           # BackupRepository 싱글톤 주입
 │   ├── ui/                           # UI 계층
 │   │   ├── MainScreen.kt             # 공책 메인 화면 (설정 진입 버튼, 날짜 헤더, 이월 배너, 줄노트, 입력 바, 배너 광고)
-│   │   ├── SettingsScreen.kt         # 설정 화면 (테마 선택, 광고 제거 구매/복원, 광고 개인정보 설정)
+│   │   ├── SettingsScreen.kt         # 설정 화면 (테마 선택, 데이터 백업/복원, 광고 제거 구매/복원, 광고 개인정보 설정)
 │   │   ├── ads/
 │   │   │   └── BannerAd.kt           # AdMob 배너를 AndroidView로 래핑한 컴포저블
 │   │   └── theme/                    # 테마 및 디자인 시스템
@@ -124,6 +129,8 @@ app/src/
     ├── FakeUserPreferencesRepository.kt   # 인메모리 Fake 설정값 Repository
     ├── FakeBillingRepository.kt           # 인앱결제 호출 위임 검증용 Fake
     ├── FakeAdsConsentRepository.kt        # 광고 동의 상태/개인정보 옵션 호출 검증용 Fake
+    ├── FakeBackupRepository.kt            # SettingsViewModel 생성용 Fake
+    ├── JournalBackupTest.kt               # 백업 파일 변환·검증, 전체 교체 테스트
     ├── MainDispatcherRule.kt              # Coroutine TestRule (UnconfinedTestDispatcher)
     ├── TaskViewModelTest.kt               # TaskViewModel 단위 테스트 스위트
     ├── SettingsViewModelTest.kt           # SettingsViewModel 단위 테스트 스위트

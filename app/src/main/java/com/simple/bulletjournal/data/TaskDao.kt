@@ -23,6 +23,26 @@ interface TaskDao {
     @Insert
     suspend fun insertTask(task: Task)
 
+    @Insert
+    suspend fun insertTasks(tasks: List<Task>)
+
+    /** 백업 파일 만들기용 전체 조회 (날짜 순 → 화면 표시 순) */
+    @Query("SELECT * FROM tasks ORDER BY date ASC, isPriority DESC, orderIndex ASC, createdAt ASC")
+    suspend fun getAllTasksOnce(): List<Task>
+
+    @Query("DELETE FROM tasks")
+    suspend fun deleteAllTasks()
+
+    /**
+     * 백업 복원: 기존 기록을 모두 지우고 [tasks]로 바꿉니다. 하나의 트랜잭션이라 중간에 실패하면 기존 기록이 그대로 남습니다.
+     * id는 새로 발급받도록 0으로 초기화합니다.
+     */
+    @Transaction
+    suspend fun replaceAllTasks(tasks: List<Task>) {
+        deleteAllTasks()
+        insertTasks(tasks.map { it.copy(id = 0) })
+    }
+
     @Update
     suspend fun updateTask(task: Task)
 
