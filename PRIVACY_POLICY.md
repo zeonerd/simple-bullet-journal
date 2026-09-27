@@ -3,7 +3,7 @@
 > ✅ 게시 완료: https://zeonerd.github.io/simple-bullet-journal/privacy-policy.html — Play Console 등록 시 이 URL을 그대로 사용하면 됩니다. 이 `.md` 파일은 원본 소스이며, 실제 게시본은 [`docs/privacy-policy.html`](docs/privacy-policy.html)입니다. 내용을 수정할 땐 두 파일을 함께 갱신하세요.
 
 **시행일**: 2026-09-20
-**최종 수정일**: 2026-09-20
+**최종 수정일**: 2026-09-27
 
 Simple Bullet Journal("본 앱")은 개인 정보 보호를 중요하게 생각합니다. 본 방침은 본 앱이 어떤 정보를 수집·이용·저장하는지 설명합니다.
 
@@ -16,15 +16,15 @@ Simple Bullet Journal("본 앱")은 개인 정보 보호를 중요하게 생각�
 본 앱은 아래 제3자 SDK를 사용하며, 각 서비스는 자체 개인정보처리방침에 따라 정보를 처리합니다.
 
 ### 2.1 Google AdMob (광고)
-본 앱은 화면 하단에 배너 광고를 표시하기 위해 Google AdMob을 사용합니다. AdMob은 광고 게재를 위해 광고 ID(Advertising ID), 기기 정보, 대략적인 위치 정보(IP 기반), 광고 상호작용 데이터를 수집할 수 있습니다.
+본 앱은 화면 하단에 배너 광고를 표시하기 위해 Google AdMob을 사용합니다. AdMob은 광고 게재, 광고 성과 분석, 부정 클릭 방지를 위해 광고 ID(Advertising ID) 등 기기 식별자, 기기 정보, 대략적인 위치 정보(IP 기반), 광고 상호작용 데이터, 진단 정보(오류·성능 기록)를 수집하여 Google과 공유할 수 있습니다.
 - Google의 개인정보처리방침: https://policies.google.com/privacy
 - 광고 개인화 설정: 기기의 설정 > 개인정보 보호 > 광고에서 광고 ID 재설정 또는 맞춤 광고 선택 해제 가능
 
 ### 2.2 Google User Messaging Platform (UMP)
-유럽경제지역(EEA)/영국 사용자에게는 GDPR 규정에 따라 광고 동의를 받는 절차를 거칩니다. 이 과정에서 동의 상태 정보가 Google에 의해 처리됩니다.
+유럽경제지역(EEA)/영국 사용자에게는 GDPR 규정에 따라 광고 동의를 받는 절차를 거칩니다. 이 과정에서 동의 상태 정보가 Google에 의해 처리됩니다. 해당 지역 사용자는 앱의 설정 > "광고 개인정보 설정"에서 언제든 동의를 변경하거나 철회할 수 있습니다.
 
 ### 2.3 Google Play Billing (인앱결제)
-"광고 제거" 구매 시 결제 처리는 전적으로 Google Play가 담당하며, 본 앱이나 개발자는 신용카드 정보 등 결제 수단 정보에 접근하거나 저장하지 않습니다. 구매 여부(영수증 토큰)만 앱 내부에 캐시되어 광고 표시 여부를 결정하는 데 사용됩니다.
+"광고 제거" 구매 시 결제 처리는 전적으로 Google Play가 담당하며, 본 앱이나 개발자는 신용카드 정보 등 결제 수단 정보에 접근하거나 저장하지 않습니다. 앱은 구매 완료 여부(예/아니요 값) 하나만 기기 내부에 저장해 광고 표시 여부를 결정하는 데 사용하며, 결제 영수증이나 결제 수단 정보는 저장하지 않습니다. 환불 등으로 구매가 취소되면 이 값도 해제됩니다.
 - Google Play 결제 개인정보처리방침: https://payments.google.com/payments/apis-secure/u/0/get_legal_document?ldo=0&ldt=privacynotice
 
 ## 3. 수집하지 않는 정보
