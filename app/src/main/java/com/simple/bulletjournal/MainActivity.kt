@@ -16,26 +16,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.simple.bulletjournal.data.AdsConsentRepository
 import com.simple.bulletjournal.data.ThemeMode
 import com.simple.bulletjournal.ui.MainScreen
 import com.simple.bulletjournal.ui.SettingsScreen
 import com.simple.bulletjournal.ui.theme.BulletJournalTheme
 import com.simple.bulletjournal.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private var adsReady by mutableStateOf(false)
+    @Inject lateinit var adsConsentRepository: AdsConsentRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        (application as BulletJournalApp).requestConsentAndInitializeAds(this) {
-            adsReady = true
-        }
+        adsConsentRepository.gatherConsent(this)
 
         setContent {
+            val adsReady by adsConsentRepository.canShowAds.collectAsState()
             BulletJournalRoot(adsReady = adsReady)
         }
     }

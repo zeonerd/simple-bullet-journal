@@ -1,4 +1,4 @@
-# 📋 개발 인수인계 문서 (Handover Document - v1.1.0-dev)
+# 📋 개발 인수인계 문서 (Handover Document - v1.0.0)
 
 본 문서는 **Simple Bullet Journal** 프로젝트의 아키텍처 설계 배경, 주요 구현 상세, 그리고 **v1.1+ 개발자가 즉시 작업을 이어갈 수 있도록 필요한 기술적 맥락과 로드맵**을 상세히 기술합니다.
 
@@ -6,9 +6,11 @@
 
 ---
 
-## 🚦 현재 상태 요약 (2026-09-20 기준, 다음 담당자용 TL;DR)
+## 🚦 현재 상태 요약 (2026-09-27 기준, 다음 담당자용 TL;DR)
 
-**한 줄 요약**: 앱은 기능적으로 완성되었고 Play 스토어 제출 준비물도 거의 다 갖췄습니다. **남은 건 대부분 사용자(개발자 본인)의 Play Console 계정 생성/결제 액션**이며, 코드 관점에서 막힌 것은 없습니다.
+**한 줄 요약**: 앱은 기능적으로 완성되었고 Play 스토어 제출 준비물도 거의 다 갖췄습니다. 2026-09-27 PM 인수인계 리뷰에서 발견한 **출시 리스크 5건을 코드로 해결**했습니다(9절). **남은 건 실기기 재검증 + 사용자(개발자 본인)의 Play Console 계정 생성/결제 액션**입니다.
+
+> ⚠️ 2026-09-20 버전 문서는 "코드 관점에서 막힌 것은 없다"고 했으나, 당시 Billing 7.1.1을 쓰고 있어 **Play 정책(2026-08-31부터 Billing 8 이상 필수)상 업로드 자체가 거절되는 상태**였습니다. 9절 참고.
 
 ### ✅ 완료된 것
 - 핵심 기능(줄공책 UI, 이월, 중요도, 홈 위젯, 날짜 탐색) — 전부 기존 구현, 이번 세션에서 변경 없음
@@ -18,9 +20,11 @@
 - **targetSdk 36 상향, R8 난독화 활성화** — 둘 다 실기기 검증 완료
 - **개인정보처리방침 게시**: https://zeonerd.github.io/simple-bullet-journal/privacy-policy.html
 - **스토어 등록 에셋 전부**: 아이콘, 그래픽 배너, 스크린샷 5장, 설명 문구 초안 (`store_assets/`, `PRIVACY_POLICY.md`)
-- **버그 수정 3건 + 테스트 스위트 전체 통과(20/20)**: `BulletJournalApp` 이름 충돌로 인한 빈 화면(이슈 5), 라이트 테마 상태바 아이콘 대비(이슈 6), 단위테스트 ID 충돌로 인한 결정적 실패(이슈 4) — 6절 참고
+- **출시 리스크 5건 해결(2026-09-27, 9절)**: Billing 8 마이그레이션, DB 파괴적 마이그레이션 제한, UMP 개인정보 옵션, 결제 피드백/환불 반영, 이월 트랜잭션화 + 자정 날짜 갱신. 단위테스트 26/26 통과, debug/release 빌드 성공. **실기기 검증은 아직 안 됨**(9.6절 체크리스트).
+- **버그 수정 3건 + 테스트 스위트 전체 통과(당시 20/20)**: `BulletJournalApp` 이름 충돌로 인한 빈 화면(이슈 5), 라이트 테마 상태바 아이콘 대비(이슈 6), 단위테스트 ID 충돌로 인한 결정적 실패(이슈 4) — 6절 참고
 
 ### ⏸ 사용자(개발자 본인)의 액션이 필요해 멈춰 있는 것
+0. **9.6절 실기기 검증 체크리스트의 남은 항목** 수행 (1~4번은 2026-09-27 완료, 9.7절 참고)
 1. **Play Console 개발자 등록 + 결제** — 이게 있어야 아래 전부가 풀립니다.
 2. Play Console에 앱 업로드(Internal Testing) + `remove_ads_sbj` 비소모성 상품 생성 → Billing 실결제 흐름 검증 가능
 3. 본인 Google 계정을 License Tester로 등록 → 실비용 없이 테스트 결제 가능
@@ -75,7 +79,9 @@
   * v3: `isPriority`, `orderIndex` 필드 추가
   * v4: `isMigrated` 컬럼 추가 — 어제 태스크를 오늘로 이월할 때 원본에 `isMigrated = true`를 표시해 같은 태스크가 중복으로 여러 번 이월되는 것을 막습니다.
   * `Migration(3, 4)`가 `AppDatabase.kt`에 정식으로 작성되어 있으며(`ALTER TABLE tasks ADD COLUMN isMigrated ...`), `addMigrations(MIGRATION_3_4)`로 등록되어 있습니다.
-  * 다만 `fallbackToDestructiveMigration(dropAllTables = true)`가 함께 켜져 있어, 등록되지 않은 버전 점프(예: v2 → v4 등 미래에 마이그레이션이 누락된 경우)에서는 여전히 **전체 테이블 삭제**로 처리됩니다. 신규 스키마 변경 시 반드시 `Migration(N, N+1)`을 추가하고, 배포 전 실제 업그레이드 경로(구버전 설치 → 업데이트)를 테스트하는 것을 권장합니다.
+  * **2026-09-27 변경**: 예전에는 `fallbackToDestructiveMigration(dropAllTables = true)`가 켜져 있어 마이그레이션이 하나라도 빠지면 사용자 기록 전체가 **조용히 삭제**됐습니다. 지금은 `fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2)`로 **출시 전 개발 빌드에만 있던 v1/v2에서만** 초기화를 허용합니다. 그 외 버전에서 마이그레이션이 빠지면 크래시로 드러납니다(데이터 유실보다 낫고, 업그레이드 테스트에서 바로 잡힘).
+  * **스키마 이력**: `exportSchema = true` + KSP 인자 `room.schemaLocation`으로 `app/schemas/com.simple.bulletjournal.data.AppDatabase/4.json`이 생성됩니다. **반드시 커밋**하고, 스키마를 바꿀 때마다 새 `N.json`도 함께 커밋할 것. (v3 이하 JSON은 당시 export를 안 해서 없음)
+  * 신규 스키마 변경 절차: `version` +1 → `Migration(N, N+1)` 추가 → `addMigrations` 등록 → 생성된 JSON 커밋 → 구버전 설치 후 업데이트 경로를 실기기에서 확인.
 
 ---
 
@@ -84,6 +90,7 @@
 * 위젯은 Compose UI와 문법이 유사하나, **Jetpack Glance 전용 컴포넌트**(`androidx.glance.*`)만 사용해야 합니다.
 * 앱 내부에서 태스크 변경 시 ViewModel에서 `updateWidget()`을 통해 모든 활성 위젯을 자동 갱신합니다.
 * 위젯에서 할 일 체크 또는 이월 클릭 시에는 `ActionCallback`(`ToggleTaskAction`, `MigrateTasksAction`)에서 DB를 직접 조작한 뒤 `BulletJournalWidget().update(context, glanceId)`를 호출합니다.
+* 이월 로직은 앱(`TaskViewModel`)과 위젯(`MigrateTasksAction`)이 모두 `TaskRepository.migrateUncompletedTasks(fromDate, toDate)` 하나를 공유합니다. 실제 구현은 `TaskDao`의 `@Transaction` 메서드라 연속 클릭·동시 실행에도 중복 이월이 생기지 않습니다(2026-09-27).
 * 위젯 색상은 `ui/theme/Color.kt`의 라이트/다크 팔레트를 `ColorProvider(day = ..., night = ...)`로 그대로 재사용해 앱 본체와 톤을 맞춥니다.
 * `BulletJournalWidget.provideGlance`, `ToggleTaskAction`, `MigrateTasksAction` 세 곳 모두 `TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())`을 직접 생성해서 사용합니다(Hilt 미사용). Repository 생성자 시그니처가 바뀌면 이 세 곳을 모두 함께 고쳐야 합니다.
 
@@ -94,6 +101,7 @@
 * 단위 테스트는 `app/src/test/java/com/simple/bulletjournal/`에 위치합니다.
 * 테스트 시 Room DB 대신 **`FakeTaskRepository`**를 사용합니다.
 * **주의**: `TaskDao`의 정렬 쿼리(`isPriority DESC, orderIndex ASC, createdAt ASC`)가 변경되면, `FakeTaskRepository`의 `sortedWith` 로직도 반드시 동일하게 맞춰주어야 테스트 일관성이 유지됩니다.
+* **주의**: `FakeTaskRepository.migrateUncompletedTasks`는 `TaskDao.migrateUncompletedTasks`의 규칙(미완료·미이월만 복사, 원본에 `isMigrated` 표시)을 그대로 복제한 것입니다. DAO 쪽 규칙이 바뀌면 함께 맞출 것.
 * **주의**: `FakeTaskRepository.insertTask`는 `id == 0L`일 때만 자동으로 id를 채번합니다(`nextId++`). 테스트에서 사전 데이터를 만들 때 `Task(id = 1, ...)`처럼 id를 직접 지정하면 이 카운터와 충돌해 엉뚱한 레코드가 덮어써질 수 있습니다(6절 이슈 4 참고) — **테스트 데이터의 id는 항상 기본값(0, 자동 할당)으로 둘 것.**
 * 테스트 실행 명령어:
   ```bash
@@ -186,7 +194,7 @@
    * 설정 파일: `keystore.properties` (템플릿: `keystore.properties.example`)
    * **경고**: 이 키스토어 파일이 유실되면 기존 사용자가 앱 데이터를 유지한 채 업데이트할 수 없습니다. 안전한 곳에 백업을 유지하세요.
 3. **버전 번호 관리**:
-   * 새 버전 릴리즈 시 `app/build.gradle.kts`의 `versionCode`를 1씩 증가시키고 `versionName`을 갱신합니다. (현재 `versionCode = 2`, `versionName = "1.1.0-dev"`)
+   * 새 버전 릴리즈 시 `app/build.gradle.kts`의 `versionCode`를 1씩 증가시키고 `versionName`을 갱신합니다. (현재 `versionCode = 2`, `versionName = "1.0.0"` — 2026-09-27 첫 공개 출시 버전으로 확정. 이전에 `1.1.0-dev`였으나 스토어 미출시 상태라 1.0.0으로 정리)
 
 ---
 
@@ -211,7 +219,7 @@
 1. ✅ `com.google.android.gms:play-services-ads`(23.6.0) + `com.google.android.ump:user-messaging-platform`(3.1.0) 의존성 추가. `AndroidManifest.xml`에 AdMob `APPLICATION_ID` meta-data 등록(현재 Google 공식 테스트 App ID `ca-app-pub-3940256099942544~3347511713` — `TODO(Phase 1 출시 전)` 주석으로 실제 ID 교체 지점 표시).
 2. ✅ `INTERNET`, `ACCESS_NETWORK_STATE` 권한 추가 — **이 앱 최초의 네트워크 권한**이며, Data Safety 신고 대상입니다.
 3. ✅ [`ui/ads/BannerAd.kt`](app/src/main/java/com/simple/bulletjournal/ui/ads/BannerAd.kt): `AndroidView`로 `AdView`를 래핑한 컴포저블. `remember`로 `AdView` 인스턴스를 보관하고 `DisposableEffect`로 `loadAd`/`destroy` 생명주기를 관리합니다. 테스트 배너 광고 단위 ID(`ca-app-pub-3940256099942544/6300978111`) 사용 중 — 실제 ID로 교체할 지점에 `TODO(Phase 1 출시 전)` 주석 표시.
-4. ✅ **UMP(User Messaging Platform) 동의 플로우**: [`BulletJournalApp.kt`](app/src/main/java/com/simple/bulletjournal/BulletJournalApp.kt)의 `requestConsentAndInitializeAds(activity, onReady)`가 `ConsentInformation.requestConsentInfoUpdate` → 필요 시 `loadAndShowConsentFormIfRequired` → 동의 완료(`canRequestAds() == true`) 후에만 `MobileAds.initialize()`를 호출합니다. `MainActivity.onCreate()`에서 이 함수를 호출하고, 완료 콜백에서 `adsReady = true`(Compose `mutableStateOf`)로 배너 노출을 트리거합니다.
+4. ✅ **UMP(User Messaging Platform) 동의 플로우**: *(2026-09-27에 `data/AdsConsentRepositoryImpl.kt`로 이전 — 9.3절 참고. 아래는 당시 구현 기록)* [`BulletJournalApp.kt`](app/src/main/java/com/simple/bulletjournal/BulletJournalApp.kt)의 `requestConsentAndInitializeAds(activity, onReady)`가 `ConsentInformation.requestConsentInfoUpdate` → 필요 시 `loadAndShowConsentFormIfRequired` → 동의 완료(`canRequestAds() == true`) 후에만 `MobileAds.initialize()`를 호출합니다. `MainActivity.onCreate()`에서 이 함수를 호출하고, 완료 콜백에서 `adsReady = true`(Compose `mutableStateOf`)로 배너 노출을 트리거합니다.
 5. ✅ `MainScreen(showAds: Boolean)` 파라미터로 조건부 렌더링: `BulletJournalRoot`(`MainActivity.kt`)에서 `adsReady && !preferences.isAdRemoved`를 계산해 내려줍니다. 설정 화면에서 "광고 제거"를 누르면 `UserPreferencesRepository`의 `isAdRemoved`가 `true`가 되고, 배너가 즉시 사라지며 앱을 완전히 재시작해도 유지됩니다(DataStore 영속성). 실기기(Samsung SM-S711N)에서 테스트 배너 노출 → 광고 제거 클릭 → 배너 즉시 소멸 → 재실행 후에도 유지 전부 확인.
 6. ✅ 개발 중에는 테스트 광고 단위 ID 사용 중 — 실제 광고 단위 ID는 출시 직전에만 교체 예정(본인이 자기 광고를 클릭하면 계정 정지 위험이므로 **절대 미리 교체하지 말 것**).
 7. ✅ Glance 위젯에는 광고를 넣지 않았습니다 (Glance는 배너 SDK 렌더링 불가 — 앱 화면에만 적용).
@@ -226,7 +234,7 @@
 
 ### Phase 2 — 인앱결제 (광고 제거) — ✅ 코드 구현 완료(2026-09-20), 실 구매 플로우 검증은 Play Console 상품 등록 후 가능
 
-1. ✅ `com.android.billingclient:billing-ktx`(7.1.1) 추가.
+1. ✅ `com.android.billingclient:billing-ktx`(7.1.1) 추가. → **2026-09-27 8.3.0으로 상향**(9.1절).
 2. ✅ **인앱상품 ID 확정**: `remove_ads_sbj` (`data/BillingRepositoryImpl.kt`의 `REMOVE_ADS_PRODUCT_ID` 상수). **Play Console에 이 문자열과 정확히 일치하는 비소모성(non-consumable) 상품을 등록해야 동작합니다.** 아직 등록 전.
 3. ✅ [`data/BillingRepository.kt`](app/src/main/java/com/simple/bulletjournal/data/BillingRepository.kt) / [`BillingRepositoryImpl.kt`](app/src/main/java/com/simple/bulletjournal/data/BillingRepositoryImpl.kt): `BillingClient` 연결 → `queryProductDetailsAsync`로 상품 정보 캐싱 → 연결 성공 시 자동으로 `restorePurchases()`(=`queryPurchasesAsync`) 호출해 기존 구매 이력을 동기화합니다. 재설치·기기 변경 시에도 상태 복원됨.
 4. ✅ 구매 완료(`onPurchasesUpdated`) 시 `isAdRemoved = true`로 `UserPreferencesRepository`에 반영 + 미승인 구매는 즉시 `acknowledgePurchase()` 호출(3일 내 승인 안 하면 Play가 자동 환불).
@@ -264,3 +272,59 @@
 * **과제 2(테마 수동 선택)**: ✅ Phase 0의 설정 화면과 함께 완료됨
 * **과제 1(수동 순서 변경) / 3(TaskType 확장) / 4(백업·복원)**: 스토어 1차 출시와 직접적인 관련이 없으므로 출시 이후로 순연 권장
 * **과제 5(라이트 테마 상태바 대비)**: ✅ 완료됨 (버그 수정 건, 6절 이슈 6 참고)
+
+---
+
+## 9. 출시 리스크 대응 (2026-09-27, PM 인수인계 리뷰)
+
+인수인계 시점에 소스 전수 검토로 발견한 출시 리스크와 조치 내역입니다. 단위테스트 26/26 통과(기존 20 + 신규 6), `assembleDebug`/`assembleRelease`(R8) 빌드 성공까지 확인했습니다. **연결된 기기·에뮬레이터가 없어 실기기 검증은 하지 못했습니다** — 9.6절 체크리스트를 먼저 수행할 것.
+
+### 9.1 🔴 Play Billing Library 7 → 8.3.0 (출시 불가 사유)
+* **문제**: Google Play는 2026-08-31부터 Billing Library 8 미만을 쓰는 신규 앱·업데이트 업로드를 거절합니다(연장은 Play Console에서 2026-11-01까지 별도 신청). 7.1.1 그대로면 첫 업로드부터 막힙니다.
+* **조치**: `billing = "8.3.0"`. v8에서 `queryProductDetailsAsync` 콜백이 `QueryProductDetailsResult`를 받도록 바뀐 부분 대응. `enableAutoServiceReconnection()`을 켜고, 예전의 `onBillingServiceDisconnected → connect()` 수동 재귀 재연결을 제거했습니다.
+* 9.x도 나와 있으나, 정책 요건은 8 이상이므로 마이그레이션 자료가 충분한 8.3.0을 택했습니다. 다음 정책 기한(통상 2년 주기)에 맞춰 재검토할 것.
+
+### 9.2 🟠 DB 파괴적 마이그레이션 제한 + 스키마 이력
+* 2절 참고. `fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2)`, `exportSchema = true`, `app/schemas/` 생성.
+* **남은 과제**: Room `MigrationTestHelper` 기반 마이그레이션 테스트는 `androidTest` 환경이 아직 없어 추가하지 못했습니다. 다음 스키마 변경(예: `TaskType`) 전에 도입 권장.
+
+### 9.3 🟠 UMP 개인정보 옵션(동의 변경) 진입점
+* **문제**: EEA/영국 사용자는 광고 동의를 언제든 바꿀 수 있어야 하는데, 진입점이 없었습니다.
+* **조치**: 동의 로직을 `Application`에서 [`data/AdsConsentRepository(Impl)`](app/src/main/java/com/simple/bulletjournal/data/AdsConsentRepositoryImpl.kt)로 옮기고 `di/AdsModule.kt`로 Hilt 싱글톤 제공. `privacyOptionsRequirementStatus == REQUIRED`일 때만 설정 화면에 "광고 개인정보 설정" 행이 나타나며, 누르면 `showPrivacyOptionsForm`을 띄웁니다. 동의 철회 시 `canShowAds`도 다시 계산합니다.
+* 부수 수정: 예전 코드는 동의 콜백 두 경로에서 `MobileAds.initialize`가 중복 호출될 수 있었음 → `AtomicBoolean`으로 1회 보장. 동의 정보 갱신 실패(오프라인) 시에도 이전 세션 동의로 광고 초기화를 시도합니다(Google 권장 패턴).
+* `MainActivity`는 `@Inject AdsConsentRepository`로 `gatherConsent(this)`를 호출하고 `canShowAds` StateFlow를 구독합니다. `BulletJournalApp`은 이제 빈 `@HiltAndroidApp` 클래스입니다.
+
+### 9.4 🟡 결제 피드백 + 환불 반영
+* **문제**: 상품 정보를 못 불러온 상태에서 "광고 제거"를 누르면 아무 반응이 없었고, "구매 복원"도 결과를 알려주지 않았습니다. 환불돼도 `isAdRemoved`가 영구히 `true`로 남았습니다.
+* **조치**: `BillingRepository.notices: Flow<BillingNotice>`(상품 준비 안 됨/결제 보류/결제 실패/복원 완료/복원할 내역 없음/복원 실패)를 추가하고, `SettingsScreen`이 스낵바로 표시합니다. 사용자 취소는 알리지 않습니다. `ITEM_ALREADY_OWNED`는 구매 내역 재동기화로 처리합니다.
+* **환불 반영**: 앱 시작 시/복원 시 구매 조회가 **성공했는데** 해당 상품의 `PURCHASED` 구매가 없으면 `isAdRemoved = false`로 되돌립니다. 조회 자체가 실패하면(오프라인 등) 상태를 건드리지 않습니다.
+
+### 9.5 🟡 이월 트랜잭션화 + 자정 날짜 갱신
+* **이월**: 앱·위젯에 중복돼 있던 이월 루프를 `TaskDao.migrateUncompletedTasks`(`@Transaction`)로 일원화(3절). 신규 테스트 `migrateYesterdayTasks_calledTwice_doesNotDuplicate`.
+* **자정**: 앱을 켜둔 채 자정을 넘기면 "오늘" 페이지가 어제 날짜에 머물렀습니다. `TaskViewModel.onAppResumed()`를 `MainScreen`의 `LifecycleEventEffect(ON_RESUME)`에서 호출해, "오늘"을 보고 있던 경우에만 새 날짜로 옮깁니다(일부러 다른 날짜를 보던 경우는 유지). 테스트용으로 `today: () -> LocalDate`를 교체 가능하게 둠(`widgetUpdater`와 같은 방식). 의존성 `lifecycle-runtime-compose` 추가.
+* 위젯은 `updatePeriodMillis = 30분` 주기라 자정 후 최대 30분간 전날 날짜가 보일 수 있습니다 — 출시 차단 사유는 아니라 보류.
+
+### 9.6 실기기 검증 체크리스트 (다음 세션 최우선)
+1. 기존 v4 DB에 할 일이 있는 상태의 이전 빌드 위에 새 빌드를 **덮어 설치** → 기록이 그대로 남는지 (마이그레이션/폴백 변경 확인)
+2. 메인 화면 하단 테스트 배너 노출 (동의 로직 이전 후 회귀 없음 확인)
+3. 설정 → "광고 제거" 클릭 → 상품 미등록 상태이므로 "지금은 결제를 진행할 수 없습니다" 스낵바 표시
+4. 설정 → "구매 복원" → "복원할 구매 내역이 없습니다" 스낵바
+5. 앱 이월 배너 "가져오기", 위젯 "가져오기 ➔" 빠르게 두 번 탭 → 중복 없이 한 번만 이월
+6. (선택) UMP 디버그 지역을 EEA로 강제(`ConsentDebugSettings.setDebugGeography`)해 "광고 개인정보 설정" 행 노출·폼 동작 확인 — 테스트 후 디버그 설정은 반드시 제거
+7. release 빌드(R8)로 위 1~5 반복
+
+### 9.7 실기기 검증 결과 (2026-09-27, Samsung SM-S711N / Android 16, release 서명 빌드)
+| # | 항목 | 결과 |
+|---|---|---|
+| 1 | 09-20 release 빌드(실사용 데이터 있음) 위에 새 빌드 덮어 설치 | ✅ 크래시 없음, 기존 기록(어제 미완료 4개 등) 그대로 유지 |
+| 2 | 메인 화면 테스트 배너 노출 | ✅ 노출됨. **참고**: 업데이트 전에는 배너가 없었는데, 이는 Phase 0 시절 "광고 제거" 버튼이 결제 없이 `isAdRemoved = true`를 직접 세팅했던 흔적입니다. 새 구매 동기화 로직이 "Play에 구매 내역 없음"을 확인하고 정상적으로 해제한 것 — 의도된 동작 |
+| 3 | 설정 → "광고 제거" (상품 미등록 상태) | ✅ "지금은 결제를 진행할 수 없습니다…" 스낵바 |
+| 4 | 설정 → "구매 복원" | ✅ "복원할 구매 내역이 없습니다." 스낵바 |
+| — | 한국 지역에서 "광고 개인정보 설정" 행 | ✅ 미노출(의도대로) |
+| 5 | 이월 연속 실행 | ⏸ 미검증 — 실사용 데이터를 건드리지 않기 위해 보류. 단위테스트로만 확인됨 |
+| 6·7 | EEA 강제 테스트 등 | ⏸ 미검증 |
+
+**검증 중 발견·수정한 버그 — 이슈 7: 설정 화면에서 시스템 뒤로가기를 누르면 앱이 종료됨** (기존 버그, 2026-09-27 해결)
+* **원인**: 화면 전환을 `NavHost` 없이 `MainActivity`의 `showSettings` 로컬 상태로 하는데, `SettingsScreen`이 시스템 뒤로가기를 가로채지 않아 Activity가 그대로 종료됐습니다. 상단 ← 버튼만 동작했습니다.
+* **해결**: `SettingsScreen`에 `BackHandler(onBack = onBack)` 추가. 화면이 늘어나 `NavHost`로 옮기기 전까지는, 새 화면을 추가할 때마다 같은 처리가 필요합니다.
+* 수정 후 재검증은 기기가 잠겨 완료하지 못함 — 다음 세션에서 확인.

@@ -264,4 +264,47 @@ class TaskViewModelTest {
             assertFalse(orderedList[1].isPriority)
         }
     }
+
+    @Test
+    fun migrateYesterdayTasks_calledTwice_doesNotDuplicate() = runTest {
+        val yesterday = LocalDate.now().minusDays(1)
+        fakeRepository.insertTask(Task(date = yesterday.format(formatter), content = "한 번만 이월"))
+
+        viewModel.migrateYesterdayTasks()
+        viewModel.migrateYesterdayTasks()
+
+        val todayTasks = fakeRepository.getTasksByDateOnce(LocalDate.now().format(formatter))
+        assertEquals(1, todayTasks.size)
+        assertEquals("한 번만 이월", todayTasks[0].content)
+    }
+
+    @Test
+    fun onAppResumed_afterMidnight_movesFromOldTodayToNewToday() {
+        val oldToday = viewModel.selectedDate.value
+        viewModel.today = { oldToday.plusDays(1) }
+
+        viewModel.onAppResumed()
+
+        assertEquals(oldToday.plusDays(1), viewModel.selectedDate.value)
+    }
+
+    @Test
+    fun onAppResumed_afterMidnight_keepsExplicitlyChosenDate() {
+        val oldToday = viewModel.selectedDate.value
+        viewModel.goToPreviousDay()
+        viewModel.today = { oldToday.plusDays(1) }
+
+        viewModel.onAppResumed()
+
+        assertEquals(oldToday.minusDays(1), viewModel.selectedDate.value)
+    }
+
+    @Test
+    fun onAppResumed_sameDay_doesNothing() {
+        val today = viewModel.selectedDate.value
+
+        viewModel.onAppResumed()
+
+        assertEquals(today, viewModel.selectedDate.value)
+    }
 }

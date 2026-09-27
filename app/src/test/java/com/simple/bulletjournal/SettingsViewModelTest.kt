@@ -2,12 +2,14 @@ package com.simple.bulletjournal
 
 import android.app.Activity
 import app.cash.turbine.test
+import com.simple.bulletjournal.data.BillingNotice
 import com.simple.bulletjournal.data.ThemeMode
 import com.simple.bulletjournal.viewmodel.SettingsViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -20,15 +22,18 @@ class SettingsViewModelTest {
 
     private lateinit var fakeRepository: FakeUserPreferencesRepository
     private lateinit var fakeBillingRepository: FakeBillingRepository
+    private lateinit var fakeAdsConsentRepository: FakeAdsConsentRepository
     private lateinit var viewModel: SettingsViewModel
 
     @Before
     fun setup() {
         fakeRepository = FakeUserPreferencesRepository()
         fakeBillingRepository = FakeBillingRepository()
+        fakeAdsConsentRepository = FakeAdsConsentRepository()
         viewModel = SettingsViewModel(
             repository = fakeRepository,
-            billingRepository = fakeBillingRepository
+            billingRepository = fakeBillingRepository,
+            adsConsentRepository = fakeAdsConsentRepository
         )
     }
 
@@ -63,6 +68,26 @@ class SettingsViewModelTest {
         viewModel.restorePurchases()
 
         assertEquals(1, fakeBillingRepository.restorePurchasesCallCount)
+    }
+
+    @Test
+    fun billingNotices_areForwardedFromBillingRepository() = runTest {
+        viewModel.billingNotices.test {
+            fakeBillingRepository.noticesFlow.emit(BillingNotice.PRODUCT_UNAVAILABLE)
+            assertEquals(BillingNotice.PRODUCT_UNAVAILABLE, awaitItem())
+        }
+    }
+
+    @Test
+    fun privacyOptions_reflectConsentRequirementAndDelegateForm() = runTest {
+        viewModel.isPrivacyOptionsRequired.test {
+            assertFalse(awaitItem())
+            fakeAdsConsentRepository.isPrivacyOptionsRequiredFlow.value = true
+            assertTrue(awaitItem())
+        }
+
+        viewModel.showPrivacyOptionsForm(TestActivity())
+        assertEquals(1, fakeAdsConsentRepository.showPrivacyOptionsFormCallCount)
     }
 
     private class TestActivity : Activity()

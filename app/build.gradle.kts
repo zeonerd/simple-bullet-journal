@@ -25,7 +25,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 2
-        versionName = "1.1.0-dev"
+        versionName = "1.0.0"
     }
 
     signingConfigs {
@@ -69,10 +69,16 @@ android {
     }
 }
 
+// Room 스키마 이력(app/schemas/*.json)을 버전별로 남겨 마이그레이션 작성·검증의 기준으로 삼는다. 반드시 커밋할 것.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

@@ -1,6 +1,8 @@
 package com.simple.bulletjournal.ui
 
 import android.app.Activity
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,16 +20,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.simple.bulletjournal.data.BillingNotice
 import com.simple.bulletjournal.data.ThemeMode
 import com.simple.bulletjournal.ui.theme.LocalNotebookColors
 import com.simple.bulletjournal.viewmodel.SettingsViewModel
@@ -39,9 +46,24 @@ fun SettingsScreen(
 ) {
     val colors = LocalNotebookColors.current
     val preferences by viewModel.userPreferences.collectAsState()
+    val isPrivacyOptionsRequired by viewModel.isPrivacyOptionsRequired.collectAsState()
     val activity = LocalContext.current as? Activity
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Scaffold(containerColor = colors.paper) { padding ->
+    // 화면 전환을 NavHost 없이 MainActivity의 로컬 상태로 하므로, 시스템 뒤로가기를 직접 가로채지 않으면
+    // 설정 화면에서 뒤로가기를 눌렀을 때 메인 화면이 아니라 앱 자체가 종료된다.
+    BackHandler(onBack = onBack)
+
+    LaunchedEffect(viewModel) {
+        viewModel.billingNotices.collect { notice ->
+            snackbarHostState.showSnackbar(notice.message())
+        }
+    }
+
+    Scaffold(
+        containerColor = colors.paper,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -122,8 +144,29 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // ── 광고 개인정보 옵션 (EEA/영국 등 UMP가 요구하는 지역에서만 노출) ──
+            if (isPrivacyOptionsRequired && !preferences.isAdRemoved) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { activity?.let(viewModel::showPrivacyOptionsForm) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text("광고 개인정보 설정", color = colors.text)
+                }
+            }
         }
     }
+}
+
+private fun BillingNotice.message(): String = when (this) {
+    BillingNotice.PRODUCT_UNAVAILABLE -> "지금은 결제를 진행할 수 없습니다. 잠시 후 다시 시도해주세요."
+    BillingNotice.PURCHASE_PENDING -> "결제가 처리 중입니다. 완료되면 광고가 자동으로 사라집니다."
+    BillingNotice.PURCHASE_FAILED -> "결제를 완료하지 못했습니다. 잠시 후 다시 시도해주세요."
+    BillingNotice.RESTORED -> "구매 내역을 복원했습니다."
+    BillingNotice.NOTHING_TO_RESTORE -> "복원할 구매 내역이 없습니다."
+    BillingNotice.RESTORE_FAILED -> "구매 내역을 확인하지 못했습니다. 네트워크 연결을 확인해주세요."
 }
 
 @Composable

@@ -29,4 +29,8 @@ class TaskRepositoryImpl(
     override suspend fun deleteTask(task: Task) {
         taskDao.deleteTask(task)
     }
+
+    override suspend fun migrateUncompletedTasks(fromDate: String, toDate: String): Int {
+        return taskDao.migrateUncompletedTasks(fromDate, toDate)
+    }
 }

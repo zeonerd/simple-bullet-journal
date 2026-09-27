@@ -261,17 +261,7 @@ class MigrateTasksAction : ActionCallback {
         val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val repository: TaskRepository = TaskRepositoryImpl(AppDatabase.getInstance(context).taskDao())
-        val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted && !it.isMigrated }
-        uncompleted.forEach { task ->
-            repository.insertTask(
-                Task(
-                    date = today,
-                    content = task.content,
-                    isPriority = task.isPriority
-                )
-            )
-            repository.updateTask(task.copy(isMigrated = true))
-        }
+        repository.migrateUncompletedTasks(fromDate = yesterday, toDate = today)
         BulletJournalWidget().update(context, glanceId)
     }
 }

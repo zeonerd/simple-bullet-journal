@@ -64,6 +64,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.simple.bulletjournal.data.Task
 import com.simple.bulletjournal.ui.ads.BannerAd
 import com.simple.bulletjournal.ui.theme.LocalNotebookColors
@@ -96,6 +98,10 @@ fun MainScreen(
     var showMigrationDialog by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val isToday = selectedDate == LocalDate.now()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.onAppResumed()
+    }
 
     Scaffold(
         containerColor = colors.paper

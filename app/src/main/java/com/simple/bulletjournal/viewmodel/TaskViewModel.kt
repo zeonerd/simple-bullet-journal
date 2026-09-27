@@ -36,9 +36,13 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    // 테스트에서 "자정이 지난 상황"을 흉내낼 수 있도록 오늘 날짜 계산도 교체 가능하게 둔다(widgetUpdater와 같은 방식).
+    var today: () -> LocalDate = { LocalDate.now() }
+
     private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-    private val _selectedDate = MutableStateFlow(LocalDate.now())
+    private var lastKnownToday: LocalDate = today()
+    private val _selectedDate = MutableStateFlow(lastKnownToday)
     val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -67,7 +71,20 @@ class TaskViewModel @Inject constructor(
     }
 
     fun goToToday() {
-        _selectedDate.value = LocalDate.now()
+        _selectedDate.value = today()
+    }
+
+    /**
+     * 앱이 다시 화면에 나타날 때 호출. 앱을 켜둔 채 자정을 넘긴 경우, "오늘" 페이지를 보고 있던 사용자는
+     * 새 날짜로 옮겨준다(어제 페이지에 할 일을 적는 실수 방지). 일부러 다른 날짜를 보고 있었다면 그대로 둔다.
+     */
+    fun onAppResumed() {
+        val now = today()
+        if (now == lastKnownToday) return
+        if (_selectedDate.value == lastKnownToday) {
+            _selectedDate.value = now
+        }
+        lastKnownToday = now
     }
 
     fun addTask(content: String) {
@@ -95,20 +112,8 @@ class TaskViewModel @Inject constructor(
         viewModelScope.launch {
             val yesterday = _selectedDate.value.minusDays(1).format(formatter)
             val currentDate = _selectedDate.value.format(formatter)
-            val uncompleted = repository.getTasksByDateOnce(yesterday).filter { !it.isCompleted && !it.isMigrated }
-            if (uncompleted.isEmpty()) return@launch
-
-            uncompleted.forEach { task ->
-                repository.insertTask(
-                    Task(
-                        date = currentDate,
-                        content = task.content,
-                        isPriority = task.isPriority
-                    )
-                )
-                repository.updateTask(task.copy(isMigrated = true))
-            }
-            updateWidget()
+            val migratedCount = repository.migrateUncompletedTasks(fromDate = yesterday, toDate = currentDate)
+            if (migratedCount > 0) updateWidget()
         }
     }
 
